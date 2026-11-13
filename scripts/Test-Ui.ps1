@@ -171,6 +171,60 @@ try {
 finally {
     if (-not $form.IsDisposed) { $form.Close(); $form.Dispose() }
 }
+$mainSettings = $mainType.GetField('settings', $flags).GetValue($form)
+if (-not $mainSettings.ContainsKey('ui_main_bounds') -or -not $mainSettings.ContainsKey('ui_scale_bounds')) {
+    throw 'Closing main window did not save main + Scale window geometry'
+}
+Write-Host 'PASS: main shutdown persists both main and Scale window geometry'
+
+# Verify the shared geometry helper independently: exact roundtrip, missing
+# monitor / offscreen recovery, invalid settings safely ignored.
+$placementType = $asm.GetType('FFmpegForge.WindowPlacement', $true)
+$staticFlags = [Reflection.BindingFlags]'Static,NonPublic,Public'
+$savePlacement = $placementType.GetMethod('Save', $staticFlags)
+$restorePlacement = $placementType.GetMethod('Restore', $staticFlags)
+$geomSettings = [System.Collections.Generic.Dictionary[string,string]]::new()
+$working = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
+$testWidth = [Math]::Min(640, [Math]::Max(220, $working.Width - 80))
+$testHeight = [Math]::Min(460, [Math]::Max(180, $working.Height - 80))
+$testLeft = $working.Left + 25
+$testTop = $working.Top + 25
+$testForm = [System.Windows.Forms.Form]::new()
+try {
+    $testForm.MinimumSize = [System.Drawing.Size]::new(180, 150)
+    $testForm.StartPosition = [System.Windows.Forms.FormStartPosition]::Manual
+    $testForm.Bounds = [System.Drawing.Rectangle]::new($testLeft, $testTop, $testWidth, $testHeight)
+    [void]$testForm.Handle
+    [void]$savePlacement.Invoke($null, [object[]]@($testForm, $geomSettings, 'window_test'))
+    if (-not $geomSettings.ContainsKey('window_test_bounds')) { throw 'Geometry not saved' }
+    $testForm.Bounds = [System.Drawing.Rectangle]::new($working.Left + 4, $working.Top + 4, 220, 180)
+    $ok = $restorePlacement.Invoke($null, [object[]]@($testForm, $geomSettings, 'window_test'))
+    if (-not $ok -or $testForm.StartPosition -ne [System.Windows.Forms.FormStartPosition]::Manual) {
+        throw 'Normal geometry could not be restored'
+    }
+    if ([Math]::Abs($testForm.Left - $testLeft) -gt 4 -or [Math]::Abs($testForm.Top - $testTop) -gt 4) {
+        throw 'Saved window position did not roundtrip'
+    }
+    if ([Math]::Abs($testForm.Width - $testWidth) -gt 4 -or [Math]::Abs($testForm.Height - $testHeight) -gt 4) {
+        throw 'Saved window size did not roundtrip'
+    }
+    # A second monitor was disconnected: coordinates must be moved to the
+    # primary screen rather than leaving the window unreachable.
+    $geomSettings['window_test_bounds'] = '100000,100000,640,480'
+    $ok = $restorePlacement.Invoke($null, [object[]]@($testForm, $geomSettings, 'window_test'))
+    $visible = [System.Drawing.Rectangle]::Intersect($testForm.Bounds, $working)
+    if (-not $ok -or $visible.Width -lt 90 -or $visible.Height -lt 50) {
+        throw 'Disconnected monitor left the restored window off-screen'
+    }
+    $geomSettings['window_test_bounds'] = 'this,is,not,a-window'
+    if ($restorePlacement.Invoke($null, [object[]]@($testForm, $geomSettings, 'window_test'))) {
+        throw 'Corrupted settings should not be restored'
+    }
+    Write-Host 'PASS: window position/size roundtrip, disconnected-monitor recovery and invalid settings guard'
+}
+finally {
+    $testForm.Dispose()
+}
 
 # RIP layout regression. No disc is required: only WinForms controls and
 # geometry are exercised. The old 6-column AutoSize table exceeded even 1525px.
@@ -184,9 +238,15 @@ Write-Host ("RIP constructor: " + $ctor.ToString())
 $argsToRip = New-Object 'object[]' 2
 $argsToRip[0] = $null
 $argsToRip[1] = $emptySettings
+# Reopening RIP restores its own window, not the main/Scale bounds.
+$emptySettings['ui_rip_bounds'] = ($working.Left + 8).ToString() + ',' + ($working.Top + 8).ToString() + ',1020,760'
+$emptySettings['ui_rip_max'] = '0'
 $rip = $ctor.Invoke($argsToRip)
 try {
     [void]$rip.Handle
+    if ($rip.StartPosition -ne [System.Windows.Forms.FormStartPosition]::Manual) {
+        throw 'RIP did not restore its saved geometry'
+    }
     $root = $rip.Controls[0]
     # Hosted Windows CI uses a small virtual screen. Form.Size gets silently
     # clamped (~1028px), so size the internal layout directly to exercise
@@ -231,3 +291,5 @@ try {
 finally {
     if (-not $rip.IsDisposed) { $rip.Close(); $rip.Dispose() }
 }
+if (-not $emptySettings.ContainsKey('ui_rip_bounds')) { throw 'RIP bounds not saved' }
+Write-Host 'PASS: DVD RIP window remembers geometry in the same settings dictionary'
