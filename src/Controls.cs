@@ -283,7 +283,7 @@ namespace FFmpegForge
         public string Right1 = "";
         public Color Right1Color = Theme.Muted;
         public int FilterCount, FormatCount;
-        public string Version = "2.3.1";
+        public string Version = "2.3.2";
         public readonly FlatBtn StatusPill;
 
 
@@ -387,7 +387,7 @@ namespace FFmpegForge
         public string Right1 = "";
         public Color Right1Color = Theme.Muted;
         public int FilterCount, FormatCount;
-        public string Version = "2.3.1";
+        public string Version = "2.3.2";
 
         public SideBar()
         {
