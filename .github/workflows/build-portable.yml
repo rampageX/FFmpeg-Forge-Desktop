@@ -42,7 +42,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           UPSTREAM_TAG: ${{ inputs.upstream_tag || '2.3.0' }}
         run: |
-          ./scripts/Build-Portable.ps1 -UpstreamTag $env:UPSTREAM_TAG -Suffix rampage.2 -OutputDir dist
+          ./scripts/Build-Portable.ps1 -UpstreamTag $env:UPSTREAM_TAG -Suffix rampage.3 -OutputDir dist
 
       - name: Smoke-test WinForms creation and expand/collapse under STA
         shell: pwsh
@@ -73,10 +73,10 @@ jobs:
           ZIP_NAME: ${{ steps.package.outputs.name }}
           ZIP_SHA256: ${{ steps.package.outputs.sha256 }}
         run: |
-          $tag = "v$env:VERSION-rampage.2"
+          $tag = "v$env:VERSION-rampage.3"
           $notes = @"
           Built from locally maintained **LiteSource/**, originally imported from the official FFmpeg Forge $env:VERSION release Source (the upstream main branch contains older source).
-          Changes: simplified dark title banner and empty-list background (removed embedded decoration); native dark scrollbars and owner-drawn dark ComboBox popup/arrow; batched non-animated settings expansion with scoped composited painting. Slim portable: no bundled FFmpeg/ subdirectory, bin/ directory, ffmpeg.exe, ffprobe.exe or ffplay.exe.
+          Changes: flat header and empty-list backgrounds; native dark scrollbars, combo arrows, numeric spinners and DVD RIP progress bar; compact responsive DVD RIP layout without clipped options; batched non-animated settings expansion. Slim portable: no bundled FFmpeg/ subdirectory, bin/ directory, ffmpeg.exe, ffprobe.exe or ffplay.exe.
           Keeps ForgeRTX.exe, dovi_tool.exe and required license files.
           Select your own FFmpeg binary via **FFmpeg location...**; place ffprobe.exe next to it to enable full media probing.
           GitHub Actions build verified the EXE version and ZIP contents.
