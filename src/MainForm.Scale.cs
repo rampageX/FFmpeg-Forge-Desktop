@@ -34,13 +34,16 @@ namespace FFmpegForge
                 MinimumSize = new Size(Theme.S(620), Theme.S(540)),
                 ShowInTaskbar = false
             };
+            WindowPlacement.Restore(scaleWindow, settings, "ui_scale");
             scaleWindow.HandleCreated += (s, e) => DarkTitle.Apply(scaleWindow.Handle);
             scaleWindow.FormClosing += (s, e) =>
             {
+                WindowPlacement.Save(scaleWindow, settings, "ui_scale");
                 if (e.CloseReason == CloseReason.UserClosing)
                 {
                     e.Cancel = true;
                     scaleWindow.Hide();
+                    SaveSettings();
                 }
             };
 
