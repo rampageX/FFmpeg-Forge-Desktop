@@ -57,7 +57,7 @@ namespace FFmpegForge
     }
 
     // Parent compositing is deliberately scoped to the right-hand settings
-    // column. Do NOT enable WS_EX_COMPOSITED on the entire Form or a ListView.
+    // card. Do NOT enable WS_EX_COMPOSITED on the Form, scrolling viewport or ListView.
     // This mirrors FGS SettingsPaintPolicy and avoids native child white flashes
     // during autosizing while preserving fast list scrolling and video previews.
     internal static class SmoothPaintPolicy
@@ -75,7 +75,9 @@ namespace FFmpegForge
         {
             SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint, true);
         }
-        protected override CreateParams CreateParams { get { return SmoothPaintPolicy.Apply(base.CreateParams); } }
+        // The outer scrolling viewport is buffered, but NOT composited:
+        // nested WS_EX_COMPOSITED here would multiply redraw costs.
+
     }
 
     internal sealed class SmoothSettingsTable : TableLayoutPanel
@@ -84,11 +86,13 @@ namespace FFmpegForge
         {
             SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint, true);
         }
-        protected override CreateParams CreateParams { get { return SmoothPaintPolicy.Apply(base.CreateParams); } }
+        // Layout table is buffered; its individual section cards are composited.
+
     }
 
     internal sealed class SmoothCardTable : CardTable
     {
+        // One composited layer per card, without nested composited ancestors.
         protected override CreateParams CreateParams { get { return SmoothPaintPolicy.Apply(base.CreateParams); } }
     }
 
