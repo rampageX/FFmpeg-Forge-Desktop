@@ -8,8 +8,7 @@ Windows build: build.bat → dist/FFmpegForge.exe.
 Release build: scripts/Build-Portable.ps1 → dist/FFMpegForgeLite.zip.
 UI regression: scripts/Test-Ui.ps1 runs on Windows with STA.
 
-Upstream baseline: archive/upstream/v2.3.0/FFmpegForge-2.3.0-Portable.rar
-is backed up as the archive-upstream-2.3.0 draft Release attachment; verify its SHA256 against the archive manifest.
+Upstream baseline: archive/upstream/v2.3.0/README.md contains the manifest for the original RAR, which is backed up in an owner-accessible draft Release attachment. The 209 MB binary is deliberately not part of Git history; verify SHA256 against the archive manifest.
 
 To merge upstream changes:
 1. Fetch the latest official upstream release archive.
