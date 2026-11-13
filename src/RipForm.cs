@@ -50,6 +50,7 @@ namespace FFmpegForge
             Build();
             DarkNativeScroll.Attach(this);
             LoadSettings();
+            WindowPlacement.Restore(this, this.settings, "ui_rip");
             RefreshDrives();
             UpdateOptionState();
         }
@@ -613,6 +614,7 @@ namespace FFmpegForge
 
         void SaveSettings()
         {
+            WindowPlacement.Save(this, settings, "ui_rip");
             settings["rip_fmt"] = cbFormat.SelectedIndex.ToString(); settings["rip_v"] = cbVideo.SelectedIndex.ToString(); settings["rip_q"] = cbQuality.SelectedIndex.ToString();
             settings["rip_sp"] = cbSpeed.SelectedIndex.ToString(); settings["rip_res"] = cbRes.SelectedIndex.ToString(); settings["rip_deint"] = cbDeint.SelectedIndex.ToString();
             settings["rip_a"] = cbAudio.SelectedIndex.ToString(); settings["rip_kbps"] = cbKbps.SelectedIndex.ToString(); settings["rip_subs"] = cbSubs.SelectedIndex.ToString();
