@@ -90,7 +90,10 @@ Write-Host 'RIP smoke: constructing options window.'
 $ripType = $asm.GetType('FFmpegForge.RipForm', $true)
 $progressType = $asm.GetType('FFmpegForge.DarkProgressBar', $true)
 $emptySettings = New-Object 'System.Collections.Generic.Dictionary[string,string]'
-$rip = [Activator]::CreateInstance($ripType, [object[]]@($null, $emptySettings))
+$ctor = @($ripType.GetConstructors() | Where-Object { $_.GetParameters().Count -eq 2 })[0]
+if (-not $ctor) { throw 'RIP form constructor signature changed' }
+Write-Host ("RIP constructor: " + $ctor.ToString())
+$rip = $ctor.Invoke([object[]]@($null, $emptySettings))
 try {
     [void]$rip.Handle
     foreach ($screen in @(@(980, 720), @(1180, 860), @(1525, 953))) {
