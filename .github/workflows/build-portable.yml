@@ -2,7 +2,7 @@ name: Build FFmpeg Forge Lite (Windows)
 
 on:
   push:
-    branches: [main, release/v2.3.1, forge/scale-window-ux]
+    branches: [main, release/v2.3.2, forge/scale-window-ux]
     paths:
       - '.github/workflows/build-portable.yml'
       - 'src/**'
@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       publish:
-        description: 'Publish v2.3.1 to Releases (main branch only)'
+        description: 'Publish v2.3.2 to Releases (main branch only)'
         type: boolean
         required: true
         default: false
@@ -33,13 +33,13 @@ jobs:
         with:
           lfs: false
 
-      - name: Compile v2.3.1 and produce FFMpegForgeLite.zip
+      - name: Compile v2.3.2 and produce FFMpegForgeLite.zip
         id: package
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          ./scripts/Build-Portable.ps1 -Version 2.3.1 -UpstreamTag 2.3.0 -OutputDir dist
+          ./scripts/Build-Portable.ps1 -Version 2.3.2 -UpstreamTag 2.3.0 -OutputDir dist
 
       - name: WinForms STA smoke tests (including RIP layout)
         shell: pwsh
@@ -56,39 +56,39 @@ jobs:
       - name: Upload candidate for testing
         uses: actions/upload-artifact@v4
         with:
-          name: FFMpegForgeLite-2.3.1
+          name: FFMpegForgeLite-2.3.2
           path: dist/FFMpegForgeLite.zip
           if-no-files-found: error
           retention-days: 30
 
       - name: Publish official Lite release (single ZIP only)
-        if: "${{ github.ref == 'refs/heads/main' && ((github.event_name == 'workflow_dispatch' && inputs.publish) || (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'release: FFmpeg Forge Lite 2.3.1'))) }}"
+        if: "${{ github.ref == 'refs/heads/main' && ((github.event_name == 'workflow_dispatch' && inputs.publish) || (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'release: FFmpeg Forge Lite 2.3.2'))) }}"
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
           ZIP_SHA256: ${{ steps.package.outputs.sha256 }}
         run: |
-          $tag = 'v2.3.1'
+          $tag = 'v2.3.2'
           gh release view $tag -R "$env:GITHUB_REPOSITORY" --json tagName 2>$null | Out-Null
           if ($LASTEXITCODE -eq 0) { throw "Refusing to overwrite existing tag $tag" }
           $notes = @"
-          FFmpeg Forge Lite 2.3.1 for Windows x64 (.NET Framework 4.x)
+          FFmpeg Forge Lite 2.3.2 for Windows x64 (.NET Framework 4.x)
 
           Based on verified upstream FFmpeg Forge 2.3.0 official release source.
 
-          - Canonical source moved to src/; removed obsolete root EXEs and old v1.1.3a source directory.
-          - Removed decorative banner and empty-list background images.
-          - Dark scrollbars, dropdown arrows/borders, numeric spinner arrows and DVD RIP progress bar.
-          - Smooth non-animated option expansion; compact, fully visible DVD/Blu-ray RIP window.
-          - Slim portable package without ffmpeg.exe / ffprobe.exe / ffplay.exe. Select your own FFmpeg installation.
-          - Preserved RTX and Dolby Vision helpers with relevant licenses.
-          - Official upstream 2.3.0 RAR separately preserved as owner-accessible archive draft; not part of the Lite package.
+          - Consolidated all Scale and AI upscaling controls into a dedicated, dark-themed Scale window, with a prominent launch button.
+          - Built-in compatibility guide and route-aware checkbox switching: Scale + OptiScaler and RTX VSR + TrueHDR can stack; incompatible output engines remain exclusive.
+          - Python / ONNX AI parameters expand only when Use my AI model is checked. Custom AI stays an independent preprocessing route.
+          - Mouse hover no longer steals focus from the outer settings scrollbar; clicked controls keep their native wheel behavior.
+          - Main, DVD/Blu-ray RIP and Scale windows remember their position, size and maximized state, with disconnected-monitor safety.
+          - Preserved earlier responsive dark UI and compact Windows portable package, without bundled FFmpeg, FFprobe or FFplay.
+          - RTX and Dolby Vision helper programs and license notices remain included.
 
-          GitHub Actions verified assembly version 2.3.1.0, SHA256, ZIP manifest and Windows GUI layout smoke tests.
+          Accepted on a real Windows desktop by the project owner. GitHub Actions verified assembly version 2.3.2.0, ZIP manifest and SHA256, Scale route compatibility, AI expansion, window geometry and RIP layout regressions.
           ZIP SHA256: $env:ZIP_SHA256
 
           Commit: $env:GITHUB_SHA
           "@
           $notes | Out-File -FilePath release-notes.md -Encoding utf8
-          gh release create $tag dist/FFMpegForgeLite.zip -R "$env:GITHUB_REPOSITORY" --target "$env:GITHUB_SHA" --title 'FFmpeg Forge Lite v2.3.1' --notes-file release-notes.md
+          gh release create $tag dist/FFMpegForgeLite.zip -R "$env:GITHUB_REPOSITORY" --target "$env:GITHUB_SHA" --title 'FFmpeg Forge Lite v2.3.2' --notes-file release-notes.md
           if ($LASTEXITCODE -ne 0) { throw 'Official release creation failed' }
