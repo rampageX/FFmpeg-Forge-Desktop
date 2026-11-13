@@ -51,9 +51,13 @@ try {
         $check = $field.GetValue($form)
         if ($null -eq $check) { throw "Null toggle: $fieldName" }
         $original = $check.Checked
+        $one = [Diagnostics.Stopwatch]::StartNew()
+        Write-Host ("UI smoke: " + $fieldName + " first toggle")
         $check.Checked = -not $original
+        Write-Host ("UI smoke: " + $fieldName + " first done in " + $one.ElapsedMilliseconds + " ms")
         $check.Checked = $original
-        [System.Windows.Forms.Application]::DoEvents()
+        $one.Stop()
+        Write-Host ("UI smoke: " + $fieldName + " restored in " + $one.ElapsedMilliseconds + " ms")
         $n += 2
     }
     $sw.Stop()
