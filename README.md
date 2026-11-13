@@ -4,7 +4,7 @@ Portable Windows converter based on the **official FFmpeg Forge 2.3.0
 release source**, with fixes for dark WinForms controls, responsive
 DVD/Blu-ray ripper layout and slow/flashy options expansion.
 
-**Download:** [FFMpegForgeLite.zip](../../releases/latest/download/FFMpegForgeLite.zip)
+**Download:** [FFMpegForgeLite.zip](https://github.com/rampageX/FFmpeg-Forge-Desktop/releases/latest/download/FFMpegForgeLite.zip)
 
 Extract the ZIP, run **FFmpegForge.exe**, then choose your own **FFmpeg
 location...** (ffmpeg.exe, with ffprobe.exe next to it). No FFmpeg binaries
