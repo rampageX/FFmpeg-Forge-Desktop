@@ -48,3 +48,23 @@ jobs:
               }
             }
           }
+
+      - name: Inspect packaging and header implementation
+        shell: pwsh
+        run: |
+          $app = "$env:RUNNER_TEMP/unpacked/FFmpeg"
+          Write-Host "TOP LEVEL:"
+          Get-ChildItem $app | ForEach-Object { Write-Host ("  " + $_.Name + " DIR=" + $_.PSIsContainer + " SIZE=" + $_.Length) }
+          Write-Host "BIN TOP LEVEL:"
+          Get-ChildItem "$app/bin" -ErrorAction SilentlyContinue | Select-Object -First 80 Name,Length
+          Write-Host "BUILD BAT:"
+          Get-Content "$app/Source/build.bat"
+          Write-Host "CONTROLS 290-383:"
+          $lines = Get-Content "$app/Source/src/Controls.cs"
+          for ($i=290;$i -le 383;$i++) { Write-Host ("  " + ($i+1) + ": " + $lines[$i]) }
+          Write-Host "ENGINE AUTODETECT LINES:"
+          $engine = Get-ChildItem "$app/Source/src" -Filter "Engine.cs" | Select-Object -First 1
+          if ($engine) {
+            $data = Get-Content $engine.FullName
+            for ($i=0;$i -lt $data.Count;$i++) { if ($data[$i] -match "AutoDetect|SetFFmpeg|Candidates|Portable") { Write-Host ("  " + ($i+1) + ": " + $data[$i]) } }
+          }
