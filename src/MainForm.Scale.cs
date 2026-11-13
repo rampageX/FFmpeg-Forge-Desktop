@@ -257,8 +257,8 @@ namespace FFmpegForge
             Point mouse = Control.MousePosition;
             // Do not scroll a background settings panel whose rectangle lies
             // beneath another window. Resolve the TOPMOST child under pointer.
-            Control target = Control.FromChildHandle(WindowFromPoint(mouse));
-            Form owner = target != null ? target.FindForm() : null;
+            Control hoveredControl = Control.FromChildHandle(WindowFromPoint(mouse));
+            Form owner = hoveredControl != null ? hoveredControl.FindForm() : null;
             if (owner == null) return false;
             foreach (var panel in viewports)
             {
