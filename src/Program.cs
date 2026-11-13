@@ -5,9 +5,9 @@ using System.Windows.Forms;
 [assembly: System.Reflection.AssemblyTitle("FFmpeg Forge")]
 [assembly: System.Reflection.AssemblyDescription("Universal Video / Audio / Image converter powered by FFmpeg")]
 [assembly: System.Reflection.AssemblyProduct("FFmpeg Forge")]
-[assembly: System.Reflection.AssemblyVersion("2.3.0.0")]
-[assembly: System.Reflection.AssemblyFileVersion("2.3.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersion("2.3.0")]
+[assembly: System.Reflection.AssemblyVersion("2.3.1.0")]
+[assembly: System.Reflection.AssemblyFileVersion("2.3.1.0")]
+[assembly: System.Reflection.AssemblyInformationalVersion("2.3.1")]
 
 namespace FFmpegForge
 {
@@ -43,7 +43,7 @@ namespace FFmpegForge
 
         static void Report(Exception ex, bool fatal)
         {
-            string text = "FFmpeg Forge 2.3.0 — " + (fatal ? "fatal error" : "error") + " — " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "\r\n" +
+            string text = "FFmpeg Forge 2.3.1 — " + (fatal ? "fatal error" : "error") + " — " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "\r\n" +
                           "Folder: " + AppDomain.CurrentDomain.BaseDirectory + "\r\n" +
                           "Windows: " + Environment.OSVersion + "  .NET: " + Environment.Version + "\r\n\r\n" + (ex != null ? ex.ToString() : "(unknown)") + "\r\n\r\n";
             string log = null;

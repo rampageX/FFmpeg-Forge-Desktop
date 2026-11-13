@@ -4,7 +4,7 @@
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
-$zip = Get-ChildItem dist -Filter '*-Portable.zip' | Select-Object -First 1
+$zip = Get-ChildItem dist -Filter 'FFMpegForgeLite.zip' | Select-Object -First 1
 if (-not $zip) { throw 'Portable ZIP missing for UI smoke test' }
 $root = Join-Path $env:RUNNER_TEMP 'forge-ui-smoke'
 if (Test-Path $root) { Remove-Item $root -Recurse -Force }

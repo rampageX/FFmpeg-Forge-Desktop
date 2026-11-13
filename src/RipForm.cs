@@ -9,7 +9,7 @@ using System.Windows.Forms;
 
 namespace FFmpegForge
 {
-    /// 2.3.0 — "Rip DVD / Blu-ray" window: source (drive, folder, ISO) → titles → tracks → format → rip.
+    /// 2.3.1 — "Rip DVD / Blu-ray" window: source (drive, folder, ISO) → titles → tracks → format → rip.
     public class RipForm : Form
     {
         readonly Font fUI = new Font("Segoe UI", 9.5f), fSmall = new Font("Segoe UI", 8.5f), fSec = new Font("Segoe UI Semibold", 8.5f), fTitle = new Font("Segoe UI Semibold", 13f);

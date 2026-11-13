@@ -1,0 +1,15 @@
+# Generated binaries, never commit at the repository root
+dist/
+bin/
+obj/
+.vs/
+*.exe
+*.dll
+*.pdb
+*.log
+*.tmp
+*.user
+__pycache__/
+*.pyc
+Thumbs.db
+.DS_Store
