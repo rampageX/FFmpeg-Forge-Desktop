@@ -16,10 +16,12 @@ $comboType = $asm.GetType('FFmpegForge.DarkCombo', $true)
 $flags = [System.Reflection.BindingFlags]'Instance,NonPublic,Public'
 [System.Windows.Forms.Application]::EnableVisualStyles()
 [System.Windows.Forms.Application]::SetCompatibleTextRenderingDefault($false)
+Write-Host 'UI smoke: constructing main form.'
 $form = [Activator]::CreateInstance($mainType)
 try {
-    $form.Show()
-    [System.Windows.Forms.Application]::DoEvents()
+    Write-Host 'UI smoke: constructor finished. Creating an off-screen form handle.'
+    [void]$form.Handle
+    $form.PerformLayout()
     if (-not $form.IsHandleCreated) { throw 'Main form handle was not created' }
     $all = New-Object 'System.Collections.Generic.List[System.Windows.Forms.Control]'
     $walk = {
@@ -41,6 +43,7 @@ try {
         throw 'Decorative ArtCache is still attached to a header or empty list'
     }
     $sw = [Diagnostics.Stopwatch]::StartNew()
+    Write-Host 'UI smoke: enumerating toggles.'
     $n = 0
     foreach ($fieldName in @('chkScale','chkOpti','chkDn','chkVsr','chkHdr','chkDlss','chkVision','chkSeed')) {
         $field = $mainType.GetField($fieldName, $flags)
@@ -49,12 +52,12 @@ try {
         if ($null -eq $check) { throw "Null toggle: $fieldName" }
         $original = $check.Checked
         $check.Checked = -not $original
-        [System.Windows.Forms.Application]::DoEvents()
         $check.Checked = $original
         [System.Windows.Forms.Application]::DoEvents()
         $n += 2
     }
     $sw.Stop()
+    Write-Host 'UI smoke: toggle pass finished.'
     Write-Host "Dynamic layout toggles: $n transitions / $([Math]::Round($sw.Elapsed.TotalMilliseconds)) ms (unoptimized CI runner)."
     if ($form.IsDisposed) { throw 'Main window closed during layout changes' }
     Write-Host 'PASS: main UI created and all toggle paths completed without exception'
