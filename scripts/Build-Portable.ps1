@@ -1,0 +1,143 @@
+# Build a slim Windows portable package from the REAL source included in the
+# upstream release archive. The upstream GitHub main branch currently has
+# outdated v1.1.3a sources while its release archive carries v2.3.0 sources.
+[CmdletBinding()]
+param(
+    [string]$UpstreamTag = '2.3.0',
+    [string]$Suffix = 'rampage.1',
+    [string]$OutputDir = 'dist'
+)
+
+$ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
+Set-StrictMode -Version Latest
+
+if ($UpstreamTag -notmatch '^\d+\.\d+\.\d+$') { throw "Unexpected upstream tag: $UpstreamTag" }
+if ($Suffix -notmatch '^rampage\.\d+$') { throw "Unexpected suffix: $Suffix" }
+
+foreach ($tool in @('gh', '7z', 'cmd.exe')) {
+    if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) { throw "$tool is required" }
+}
+if (-not $env:GH_TOKEN) { throw 'GH_TOKEN must be set for downloading the upstream release' }
+
+$root = Join-Path ([System.IO.Path]::GetTempPath()) ("forge-build-" + [Guid]::NewGuid().ToString('N'))
+$original = Join-Path $root 'original'
+$unpack = Join-Path $root 'unpack'
+$working = Join-Path $root 'working'
+$stage = Join-Path $root 'stage'
+$destination = [System.IO.Path]::GetFullPath($OutputDir)
+foreach ($d in @($original, $unpack, $working, $stage, $destination)) {
+    New-Item -ItemType Directory -Path $d -Force | Out-Null
+}
+try {
+    $archive = "FFmpegForge-$UpstreamTag-Portable.rar"
+    Write-Host "Downloading official archive: $UpstreamTag / $archive"
+    & gh release download $UpstreamTag -R Aaronstanley78/FFmpeg-Forge-Desktop -p $archive -D $original
+    if ($LASTEXITCODE -ne 0) { throw 'Upstream archive download failed' }
+    & 7z x -y "-o$unpack" (Join-Path $original $archive) | Select-Object -Last 4
+    if ($LASTEXITCODE -ne 0) { throw '7z archive extraction failed' }
+
+    $app = Join-Path $unpack 'FFmpeg'
+    $sourceDir = Join-Path $app 'Source'
+    if (-not (Test-Path (Join-Path $sourceDir 'src/Controls.cs'))) { throw 'Release Source/src/Controls.cs not found' }
+    $program = Get-Content (Join-Path $sourceDir 'src/Program.cs') -Raw
+    $versionMatch = [regex]::Match($program, 'AssemblyInformationalVersion\("([^"]+)"\)')
+    if (-not $versionMatch.Success -or $versionMatch.Groups[1].Value -ne $UpstreamTag) {
+        throw "Release source version mismatch: expected $UpstreamTag; got '$($versionMatch.Groups[1].Value)'"
+    }
+
+    # Keep upstream source intact: modify an isolated build copy only.
+    Copy-Item -LiteralPath $sourceDir -Destination (Join-Path $working 'Source') -Recurse
+    $buildSource = Join-Path $working 'Source'
+    $controls = Join-Path $buildSource 'src/Controls.cs'
+    $code = [System.IO.File]::ReadAllText($controls)
+    $pattern = '(?m)^[ \t]*var bmp = art\.For\(ClientSize\);\r?\n[ \t]*if \(bmp != null\) g\.DrawImageUnscaled\(bmp, 0, 0\);\r?\n[ \t]*else using \(var bg = new LinearGradientBrush\(ClientRectangle, Color\.FromArgb\(16, 22, 38\), Theme\.Side, LinearGradientMode\.Horizontal\)\) g\.FillRectangle\(bg, ClientRectangle\);'
+    $rx = [regex]::new($pattern)
+    if ($rx.Matches($code).Count -ne 1) {
+        throw "Upstream header changed; safe patch cannot be applied. No unmodified package will be published."
+    }
+    $replacement = '            // Lite: use a quiet dark background instead of the decorative header artwork.' + "`r`n" +
+                   '            using (var bg = new LinearGradientBrush(ClientRectangle, Color.FromArgb(16, 22, 38), Theme.Side, LinearGradientMode.Horizontal))' + "`r`n" +
+                   '                g.FillRectangle(bg, ClientRectangle);'
+    [System.IO.File]::WriteAllText($controls, $rx.Replace($code, $replacement), [System.Text.UTF8Encoding]::new($false))
+    Write-Host 'Header background artwork has been removed from rendering.'
+
+    # Reuse upstream's build command (resources and references are version-specific);
+    # disable its interactive pause and validate the newly built binary.
+    $bat = Get-Content (Join-Path $buildSource 'build.bat') -Raw
+    $bat = [regex]::Replace($bat, '(?im)^[ \t]*pause[ \t]*$', 'rem CI: no interactive pause')
+    [System.IO.File]::WriteAllText((Join-Path $buildSource 'build-ci.bat'), $bat, [System.Text.Encoding]::Default)
+    Push-Location $buildSource
+    try {
+        & cmd.exe /d /c build-ci.bat
+        if ($LASTEXITCODE -ne 0) { throw "C# compiler failed with exit code $LASTEXITCODE" }
+    }
+    finally { Pop-Location }
+    $exe = Join-Path $working 'FFmpegForge.exe'
+    if (-not (Test-Path $exe)) { throw 'C# build did not produce a new FFmpegForge.exe' }
+    $assemblyVersion = [System.Reflection.AssemblyName]::GetAssemblyName($exe).Version.ToString()
+    if ($assemblyVersion -ne "$UpstreamTag.0") { throw "Compiled EXE version mismatch: $assemblyVersion" }
+    Write-Host "Newly compiled FFmpegForge.exe: $((Get-Item $exe).Length) bytes; version $assemblyVersion"
+
+    Copy-Item $exe $stage
+    foreach ($name in @('ForgeRTX.exe', 'dovi_tool.exe', 'LICENSE-dovi_tool.txt', 'LICENSE-GPL-3.0.txt', 'SHADER_LICENSES.txt', 'portable.txt')) {
+        $candidate = Join-Path $app $name
+        if (-not (Test-Path $candidate)) { throw "Required runtime file missing from upstream release: $name" }
+        Copy-Item -LiteralPath $candidate -Destination $stage
+    }
+    if (Test-Path (Join-Path $app 'models')) {
+        Copy-Item -LiteralPath (Join-Path $app 'models') -Destination $stage -Recurse
+    }
+    # Do not copy bin/, FFmpeg/, Source/ or any bundled ffmpeg/ffprobe/ffplay executables.
+    $readme = @'
+FFmpeg Forge — Rampage Lite
+==========================
+No FFmpeg binaries are bundled with this portable release.
+Start FFmpegForge.exe and choose "FFmpeg location..." to point to your own
+ffmpeg.exe. Keep ffprobe.exe beside that ffmpeg.exe for media metadata.
+The saved FFmpeg path is reused; PATH and conventional locations are also scanned.
+The portable.txt file keeps settings in the application's directory.
+
+This version is compiled from the complete official release Source, with only
+the decorative header artwork drawing disabled. Other UI and features remain
+based on that upstream version.
+
+ForgeRTX.exe supports NVIDIA RTX driver processing; dovi_tool.exe is included
+for Dolby Vision workflows. Their original license notices are included.
+The FFmpeg/ documentation directory and all three FFmpeg executables are
+deliberately excluded.
+'@
+    [System.IO.File]::WriteAllText((Join-Path $stage 'README-LITE.txt'), $readme, [System.Text.UTF8Encoding]::new($false))
+    $outputName = "FFmpegForge-$UpstreamTag-$Suffix-Portable.zip"
+    $zip = Join-Path $destination $outputName
+    if (Test-Path $zip) { Remove-Item $zip -Force }
+    Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip -CompressionLevel Optimal
+
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $z = [System.IO.Compression.ZipFile]::OpenRead($zip)
+    try {
+        $entries = @($z.Entries | ForEach-Object FullName)
+        if ($entries -notcontains 'FFmpegForge.exe') { throw 'Portable ZIP has no application EXE' }
+        foreach ($entry in $entries) {
+            if ($entry -match '(?i)^(bin|FFmpeg|Source)/' -or
+                $entry -match '(?i)(^|/)(ffmpeg|ffprobe|ffplay)\.exe$') {
+                throw "Forbidden bundled FFmpeg content: $entry"
+            }
+        }
+        Write-Host ("ZIP manifest (" + $entries.Count + " entries):")
+        $entries | ForEach-Object { Write-Host "  $_" }
+    }
+    finally { $z.Dispose() }
+    $hash = (Get-FileHash -Algorithm SHA256 $zip).Hash
+    Write-Host "ZIP: $zip"
+    Write-Host "SHA256: $hash"
+    if ($env:GITHUB_OUTPUT) {
+        "zip=$zip" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+        "name=$outputName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+        "sha256=$hash" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+        "version=$UpstreamTag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+    }
+}
+finally {
+    if (Test-Path $root) { Remove-Item $root -Recurse -Force -ErrorAction SilentlyContinue }
+}
