@@ -1041,7 +1041,7 @@ namespace FFmpegForge
 
         NumericUpDown Num(decimal min, decimal max, decimal val, int dec)
         {
-            return new NumericUpDown { Minimum = min, Maximum = max, Value = val, DecimalPlaces = dec, BackColor = Theme.Card, ForeColor = Theme.Text, BorderStyle = BorderStyle.FixedSingle, Dock = DockStyle.Fill, Margin = new Padding(0, Theme.S(3), 0, Theme.S(3)), Font = fUI };
+            return new DarkNumeric { Minimum = min, Maximum = max, Value = val, DecimalPlaces = dec, BackColor = Theme.Card, ForeColor = Theme.Text, BorderStyle = BorderStyle.FixedSingle, Dock = DockStyle.Fill, Margin = new Padding(0, Theme.S(3), 0, Theme.S(3)), Font = fUI };
         }
 
         TextBox Txt(string t)
