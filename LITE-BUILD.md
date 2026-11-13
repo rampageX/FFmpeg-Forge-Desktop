@@ -11,19 +11,22 @@ Our Lite-specific changes are confined to `LiteSource/src/{Controls,MainForm,Fil
 1. Open **Actions → Build FFmpeg Forge Lite → Run workflow**.
 2. Use upstream tag `2.3.0`. Leave **publish = false** for a test build.
 3. After a successful Windows build and UI smoke test, download the **FFmpegForge-Lite-portable** workflow artifact.
-4. Set **publish = true** only after checking the changes yourself. The `v<version>-rampage.2` release is opt-in, and an existing tag will never be overwritten.
+4. Set **publish = true** only after checking the changes yourself. The `v<version>-rampage.3` release is opt-in, and an existing tag will never be overwritten.
 
 `scripts/Build-Portable.ps1` rebuilds the maintained C# source, checks assembly version, removes unused header/drop artwork resources, and verifies that the final ZIP includes no `FFmpeg/`, `bin/`, `Source/`, `ffmpeg.exe`, `ffprobe.exe` or `ffplay.exe`. It downloads the official archive **only** for the runtime auxiliary files (ForgeRTX, dovi_tool and licenses). It keeps the original portable settings marker.
 
 Point **FFmpeg location…** to your own `ffmpeg.exe`. Place `ffprobe.exe` alongside it for input metadata and progress reporting.
 
-## UI changes in rampage.2
+## UI changes in rampage.3
 
 - Empty-list background artwork removed; drag/drop hint, file list and shortcuts are preserved.
 - Native scrollbars use `DarkMode_Explorer` on **handle creation**, including dynamically added controls. No scrollbar is manually repainted during mouse scrolling.
 - WinForms `ComboBox` controls use owner-drawn dark list items and an arrow/chrome overlay drawn after native paint. Drop-down popup scrollbars receive the same native theme. No continuous painting timer.
 - Settings sections use narrowly scoped composited rendering and buffered ancestors, avoiding deeply nested `WS_EX_COMPOSITED` regions.
 - Expand/collapse uses one synchronous layout batch per option group, without an animation timer or repeated independent reflow.
+- NumericUpDown buttons use FGS's native WM_PAINT/WM_PRINTCLIENT paint technique. Native repeat/input handling stays intact.
+- DVD RIP options use compact bounded label and combo widths rather than the overflowing AutoSize/percent grid. The native white progress bar was replaced by a buffered dark bar.
+- The ComboBox 1px right edge and disabled inset are overpainted from the window DC after the native paint, not from WM_ERASEBKGND.
 
 `scripts/Test-Ui.ps1` performs a Windows STA constructor/toggle smoke test. On-screen flicker, drag scroll, DPI scaling and popup visuals still require an interactive Windows test.
 
