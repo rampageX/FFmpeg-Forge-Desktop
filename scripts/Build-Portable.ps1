@@ -1,8 +1,8 @@
-# FFmpeg Forge Lite 2.3.1: canonical source is in src/, build output in dist/.
+# FFmpeg Forge Lite 2.3.2: canonical source is in src/, build output in dist/.
 # Upstream 2.3.0 RAR is a verified immutable binary-helper baseline, not source.
 [CmdletBinding()]
 param(
-    [string]$Version = '2.3.1',
+    [string]$Version = '2.3.2',
     [string]$UpstreamTag = '2.3.0',
     [string]$OutputDir = 'dist'
 )
@@ -10,7 +10,7 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 Set-StrictMode -Version Latest
 
-if ($Version -ne '2.3.1' -or $UpstreamTag -ne '2.3.0') {
+if ($Version -ne '2.3.2' -or $UpstreamTag -ne '2.3.0') {
     throw 'Unsupported version/base combination. Review source and helper baseline before upgrading.'
 }
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
@@ -22,12 +22,12 @@ if (-not (Test-Path $programPath)) { throw 'Missing canonical src/Program.cs' }
 $program = [IO.File]::ReadAllText($programPath)
 if ($program -notmatch 'AssemblyInformationalVersion\("2\.3\.1"\)' -or
     $program -notmatch 'AssemblyVersion\("2\.3\.1\.0"\)') {
-    throw 'Canonical source is not 2.3.1. Refusing to package.'
+    throw 'Canonical source is not 2.3.2. Refusing to package.'
 }
 $ui = [IO.File]::ReadAllText((Join-Path $repo 'src/Controls.cs'))
 if ($ui -match 'art\.For\(ClientSize\)' -or $ui -notmatch 'Flat dark header' -or
     -not (Test-Path (Join-Path $repo 'src/DarkNumeric.cs'))) {
-    throw 'Approved 2.3.1 dark UI fixes missing; refusing to package.'
+    throw 'Approved 2.3.2 dark UI fixes missing; refusing to package.'
 }
 foreach ($tool in @('cmd.exe', 'gh', '7z')) {
     if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) { throw "Required tool missing: $tool" }
@@ -43,10 +43,10 @@ finally { Pop-Location }
 $exe = Join-Path $dest 'FFmpegForge.exe'
 if (-not (Test-Path $exe)) { throw 'build.bat did not generate dist/FFmpegForge.exe' }
 $exeVersion = [Reflection.AssemblyName]::GetAssemblyName($exe).Version.ToString()
-if ($exeVersion -ne '2.3.1.0') { throw "Compiled assembly version mismatch: $exeVersion" }
+if ($exeVersion -ne '2.3.2.0') { throw "Compiled assembly version mismatch: $exeVersion" }
 Write-Host "PASS: locally compiled EXE version = $exeVersion, bytes = $((Get-Item $exe).Length)"
 
-$tmp = Join-Path ([IO.Path]::GetTempPath()) ('forge231-' + [Guid]::NewGuid().ToString('N'))
+$tmp = Join-Path ([IO.Path]::GetTempPath()) ('forge232-' + [Guid]::NewGuid().ToString('N'))
 $download = Join-Path $tmp 'upstream'
 $unpack = Join-Path $tmp 'unpack'
 $stage = Join-Path $tmp 'stage'
@@ -85,7 +85,7 @@ try {
         Copy-Item -LiteralPath (Join-Path $runtime 'models') -Destination $stage -Recurse
     }
     $readme = @'
-FFmpeg Forge Lite 2.3.1 (Windows portable)
+FFmpeg Forge Lite 2.3.2 (Windows portable)
 ==========================================
 Extract the ZIP and run FFmpegForge.exe.
 Click "FFmpeg location..." and choose your own ffmpeg.exe.
