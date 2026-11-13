@@ -36,6 +36,10 @@ try {
     $scroll = @($all | Where-Object { $_ -is [System.Windows.Forms.ScrollableControl] -and $_.AutoScroll })
     Write-Host "Main UI: $($all.Count) child controls, $($combos.Count) dark combos, $($scroll.Count) auto-scroll containers."
     if ($combos.Count -lt 25) { throw 'Missing dark combo controls from the main form' }
+    $numericType = $asm.GetType('FFmpegForge.DarkNumeric', $true)
+    $numbers = @($all | Where-Object { $numericType.IsInstanceOfType($_) })
+    Write-Host "Main UI: $($numbers.Count) dark native numeric spinners."
+    if ($numbers.Count -lt 10) { throw 'Main numeric spinner migration incomplete' }
     if ($scroll.Count -lt 1) { throw 'Settings scroll container not found' }
     $headerType = $asm.GetType('FFmpegForge.TopHeader', $true)
     $dropType = $asm.GetType('FFmpegForge.DropHint', $true)
@@ -78,4 +82,49 @@ try {
 }
 finally {
     if (-not $form.IsDisposed) { $form.Close(); $form.Dispose() }
+}
+
+# RIP layout regression. No disc is required: only WinForms controls and
+# geometry are exercised. The old 6-column AutoSize table exceeded even 1525px.
+Write-Host 'RIP smoke: constructing options window.'
+$ripType = $asm.GetType('FFmpegForge.RipForm', $true)
+$progressType = $asm.GetType('FFmpegForge.DarkProgressBar', $true)
+$emptySettings = New-Object 'System.Collections.Generic.Dictionary[string,string]'
+$rip = [Activator]::CreateInstance($ripType, [object[]]@($null, $emptySettings))
+try {
+    [void]$rip.Handle
+    foreach ($screen in @(@(980, 720), @(1180, 860), @(1525, 953))) {
+        $rip.Size = New-Object System.Drawing.Size($screen[0], $screen[1])
+        $rip.PerformLayout()
+        $root = $rip.Controls[0]
+        $root.PerformLayout()
+        foreach ($c in $root.Controls) { $c.PerformLayout() }
+        $quality = $ripType.GetField('cbQuality', $flags).GetValue($rip)
+        $format  = $ripType.GetField('cbFormat', $flags).GetValue($rip)
+        $subtitles = $ripType.GetField('cbSubs', $flags).GetValue($rip)
+        $ripButton = $ripType.GetField('btnRip', $flags).GetValue($rip)
+        $progress = $ripType.GetField('bar', $flags).GetValue($rip)
+        $option = $quality.Parent
+        Write-Host ("RIP {0}x{1}: client={2}, root={3}, opt={4}, quality.Right={5}, subtitles.Right={6}, RIP.Right={7}" -f
+            $screen[0], $screen[1], $rip.ClientSize, $root.Bounds, $option.Bounds,
+            $quality.Right, $subtitles.Right, $ripButton.Parent.Right)
+        if ($option.Right -gt $root.ClientSize.Width + 2) {
+            throw "RIP options extend beyond root at $($screen[0])x$($screen[1])"
+        }
+        foreach ($combo in @($quality, $format, $subtitles)) {
+            if ($combo.Right -gt $option.ClientSize.Width + 2) {
+                throw "RIP combo beyond options viewport: $($combo.Name) at $($screen[0])x$($screen[1])"
+            }
+        }
+        if (-not $progressType.IsInstanceOfType($progress)) {
+            throw 'RIP native white ProgressBar has not been replaced'
+        }
+        if ($ripButton.Parent.Right -gt $root.ClientSize.Width + 2) {
+            throw "RIP bottom action row clipped at $($screen[0])x$($screen[1])"
+        }
+    }
+    Write-Host 'PASS: RIP options and bottom actions fit three window sizes; progress bar is dark'
+}
+finally {
+    if (-not $rip.IsDisposed) { $rip.Close(); $rip.Dispose() }
 }
