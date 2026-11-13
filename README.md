@@ -1,4 +1,4 @@
-# FFmpeg Forge Lite 2.3.1
+# FFmpeg Forge Lite 2.3.2
 
 Portable Windows converter based on the **official FFmpeg Forge 2.3.0
 release source**, with fixes for dark WinForms controls, responsive
@@ -12,7 +12,7 @@ are bundled.
 
 ## Repository layout
 
-- src/ — current and authoritative 2.3.1 C# source
+- src/ — current and authoritative 2.3.2 C# source
 - shaders/, aidenoise/, qtgmc/ — shaders and embedded processing scripts
 - native/rtxhelper/ — optional NVIDIA RTX helper source
 - scripts/ — packaging and Windows UI regression tests
