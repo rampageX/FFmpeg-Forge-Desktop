@@ -27,7 +27,7 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
-    timeout-minutes: 25
+    timeout-minutes: 10
     outputs:
       name: ${{ steps.package.outputs.name }}
       version: ${{ steps.package.outputs.version }}
@@ -47,8 +47,14 @@ jobs:
       - name: Smoke-test WinForms creation and expand/collapse under STA
         shell: pwsh
         run: |
-          & powershell.exe -NoProfile -Sta -ExecutionPolicy Bypass -File scripts/Test-Ui.ps1
-          if ($LASTEXITCODE -ne 0) { throw "UI runtime smoke failed ($LASTEXITCODE)" }
+          $p = Start-Process -FilePath powershell.exe -ArgumentList @('-NoProfile','-Sta','-ExecutionPolicy','Bypass','-File','scripts/Test-Ui.ps1') -NoNewWindow -PassThru
+          try {
+            if (-not $p.WaitForExit(90000)) {
+              $p.Kill()
+              throw 'UI smoke exceeded 90 seconds (possible layout hang)'
+            }
+            if ($p.ExitCode -ne 0) { throw "UI runtime smoke failed ($($p.ExitCode))" }
+          } finally { $p.Dispose() }
 
       - name: Upload ZIP for testing
         uses: actions/upload-artifact@v4
