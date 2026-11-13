@@ -1,24 +1,36 @@
-# FFmpeg Forge Lite — build and upstream sync
+# FFmpeg Forge Lite — Windows x64 build, dark UI and upstream sync
 
-This fork has two important upstream source versions: **GitHub `main` still contains v1.1.3a sources**, while the official **v2.3.0 Portable RAR includes the actual v2.3.0 `Source/`**. Compiling the GitHub root `FFmpegForge/build.bat` directly would regress the application. The Lite workflow deliberately downloads the official release archive and checks the embedded source version before building.
+## Why LiteSource exists
 
-## Build a Windows portable ZIP
+The upstream GitHub `main` directory still contains v1.1.3a C# files even though its official v2.3.0 release archive contains the **real v2.3.0 `Source/`**. To avoid silently downgrading the application, this fork keeps a verified copy of the official 2.3.0 source in `LiteSource/` and builds **from that directory**.
+
+Our Lite-specific changes are confined to `LiteSource/src/{Controls,MainForm,Filters,RipForm,DarkControls}.cs` plus the build scripts. This gives us an actual Git history for UI modifications instead of brittle runtime regex editing.
+
+## Build the Windows portable ZIP
 
 1. Open **Actions → Build FFmpeg Forge Lite → Run workflow**.
-2. Enter the official upstream release tag, e.g. `2.3.0`. Leave **publish = false** for a test build.
-3. Download the **FFmpegForge-Lite-portable** workflow artifact after the build succeeds.
-4. To publish a version, run the workflow again with **publish = true**. The release is `v<upstream-version>-rampage.1`. Existing release tags are never overwritten.
+2. Use upstream tag `2.3.0`. Leave **publish = false** for a test build.
+3. After a successful Windows build and UI smoke test, download the **FFmpegForge-Lite-portable** workflow artifact.
+4. Set **publish = true** only after checking the changes yourself. The `v<version>-rampage.2` release is opt-in, and an existing tag will never be overwritten.
 
-The source patch disables only the decorative header-art draw, retaining the application's title, logo, version badge, status, and rest of the UI. The build packages `FFmpegForge.exe`, `ForgeRTX.exe`, `dovi_tool.exe`, licenses, portable marker and available model directory. The package has no `FFmpeg/`, `bin/`, `Source/` or `ffmpeg.exe`, `ffprobe.exe`, `ffplay.exe`.
+`scripts/Build-Portable.ps1` rebuilds the maintained C# source, checks assembly version, removes unused header/drop artwork resources, and verifies that the final ZIP includes no `FFmpeg/`, `bin/`, `Source/`, `ffmpeg.exe`, `ffprobe.exe` or `ffplay.exe`. It downloads the official archive **only** for the runtime auxiliary files (ForgeRTX, dovi_tool and licenses). It keeps the original portable settings marker.
 
-On first use, select **FFmpeg location...** to point to your own `ffmpeg.exe`. Keep `ffprobe.exe` in the same folder if you need input metadata, duration and progress.
+Point **FFmpeg location…** to your own `ffmpeg.exe`. Place `ffprobe.exe` alongside it for input metadata and progress reporting.
 
-The build fails safely if the upstream source version or the banner drawing code changes. That is deliberate: it prevents silently shipping an unchanged banner or an older executable.
+## UI changes in rampage.2
 
-## Merge later upstream GitHub changes
+- Empty-list background artwork removed; drag/drop hint, file list and shortcuts are preserved.
+- Native scrollbars use `DarkMode_Explorer` on **handle creation**, including dynamically added controls. No scrollbar is manually repainted during mouse scrolling.
+- WinForms `ComboBox` controls use owner-drawn dark list items and an arrow/chrome overlay drawn after native paint. Drop-down popup scrollbars receive the same native theme. No continuous painting timer.
+- Settings sections use narrowly scoped composited rendering and buffered ancestors, avoiding deeply nested `WS_EX_COMPOSITED` regions.
+- Expand/collapse uses one synchronous layout batch per option group, without an animation timer or repeated independent reflow.
 
-Open **Actions → Sync upstream main → Run workflow**. This performs a normal `git fetch` + `git merge` onto your fork's `main` branch, then pushes without force. A conflict stops the job; no repository history is overwritten.
+`scripts/Test-Ui.ps1` performs a Windows STA constructor/toggle smoke test. On-screen flicker, drag scroll, DPI scaling and popup visuals still require an interactive Windows test.
 
-The Lite patch is stored separately in `scripts/Build-Portable.ps1`, rather than modifying old upstream source files, to reduce merge conflicts. When upstream publishes a new release, supply its release tag to the build workflow. The official RAR must include matching source; otherwise the build will stop.
+## Merge newer upstream changes
 
-Build/release workflows are manual by default; merging upstream does **not** automatically publish a GitHub Release.
+**Upstream GitHub code:** run **Actions → Sync upstream main**. That executes a normal Git fetch/merge into fork `main` without force-push. Conflicts stop the job. It does not overwrite `LiteSource/`.
+
+**Upstream release sources:** official releases currently carry newer code than GitHub `main`. When a new release appears, extract its `Source/`, compare it against `LiteSource/` and port the new changes **without** replacing our modified Controls/MainForm/Filters/RipForm classes wholesale. Only after this review should `LiteSource/src/Program.cs` and the workflow's `upstream_tag` be updated together. A mismatch fails the build instead of publishing a misleading version.
+
+Never auto-upgrade or delete any existing release. Workflow builds leave the previous release intact.
