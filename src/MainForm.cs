@@ -143,6 +143,7 @@ namespace FFmpegForge
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
 
             LoadSettings();
+            WindowPlacement.Restore(this, settings, "ui_main");
             BuildUI();
             DarkNativeScroll.Attach(this);  // attach once; theme handles on creation, never per paint
             ApplySettings();
@@ -3496,6 +3497,8 @@ namespace FFmpegForge
         {
             try
             {
+                WindowPlacement.Save(this, settings, "ui_main");
+                WindowPlacement.Save(scaleWindow, settings, "ui_scale");
                 settings["samedir"] = chkSameDir.Checked ? "1" : "0";
                 settings["outdir"] = txtOutDir.Text;
                 settings["category"] = category.ToString();
