@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 namespace FFmpegForge
@@ -245,15 +246,24 @@ namespace FFmpegForge
     {
         private readonly ScrollableControl[] viewports;
         private const int WM_MOUSEWHEEL = 0x020A;
+        [DllImport("user32.dll")]
+        private static extern IntPtr WindowFromPoint(Point point);
+
         internal SettingsWheelRouter(params ScrollableControl[] panels) { viewports = panels; }
 
         public bool PreFilterMessage(ref Message m)
         {
             if (m.Msg != WM_MOUSEWHEEL) return false;
             Point mouse = Control.MousePosition;
+            // Do not scroll a background settings panel whose rectangle lies
+            // beneath another window. Resolve the TOPMOST child under pointer.
+            Control target = Control.FromChildHandle(WindowFromPoint(mouse));
+            Form owner = target != null ? target.FindForm() : null;
+            if (owner == null) return false;
             foreach (var panel in viewports)
             {
                 if (panel == null || panel.IsDisposed || !panel.Visible || !panel.IsHandleCreated) continue;
+                if (panel.FindForm() != owner) continue;
                 if (!panel.RectangleToScreen(panel.ClientRectangle).Contains(mouse)) continue;
                 if (AnyDropdownOpen(panel)) return false;
                 var bar = panel.VerticalScroll;
