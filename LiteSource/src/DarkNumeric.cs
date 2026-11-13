@@ -211,6 +211,14 @@ namespace FFmpegForge
             using (Pen edge = new Pen(Theme.Border))
                 e.Graphics.DrawRectangle(edge, 0, 0, r.Width - 1, r.Height - 1);
         }
-        protected override void OnValueChanged(EventArgs e) { base.OnValueChanged(e); Invalidate(); }
+        protected override void WndProc(ref Message m)
+        {
+            int msg = m.Msg;
+            base.WndProc(ref m);
+            // ProgressBar has no OnValueChanged virtual method in .NET 4.
+            // Invalidate only after native range / position messages.
+            if (msg == 0x0402 || msg == 0x0401 || msg == 0x0406)
+                Invalidate(); // PBM_SETPOS, PBM_SETRANGE, PBM_SETRANGE32
+        }
     }
 }
