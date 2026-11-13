@@ -20,8 +20,8 @@ New-Item -Type Directory -Path $dest -Force | Out-Null
 $programPath = Join-Path $repo 'src/Program.cs'
 if (-not (Test-Path $programPath)) { throw 'Missing canonical src/Program.cs' }
 $program = [IO.File]::ReadAllText($programPath)
-if ($program -notmatch 'AssemblyInformationalVersion\("2\.3\.1"\)' -or
-    $program -notmatch 'AssemblyVersion\("2\.3\.1\.0"\)') {
+if ($program -notmatch 'AssemblyInformationalVersion\("2\.3\.2"\)' -or
+    $program -notmatch 'AssemblyVersion\("2\.3\.2\.0"\)') {
     throw 'Canonical source is not 2.3.2. Refusing to package.'
 }
 $ui = [IO.File]::ReadAllText((Join-Path $repo 'src/Controls.cs'))
