@@ -285,7 +285,7 @@ namespace FFmpegForge
         public int FilterCount, FormatCount;
         public string Version = "2.3.0";
         public readonly FlatBtn StatusPill;
-        readonly ArtCache art = new ArtCache("header.jpg", 0.62f, 0.5f);
+
 
         public TopHeader()
         {
@@ -327,9 +327,9 @@ namespace FFmpegForge
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
-            var bmp = art.For(ClientSize);
-            if (bmp != null) g.DrawImageUnscaled(bmp, 0, 0);
-            else using (var bg = new LinearGradientBrush(ClientRectangle, Color.FromArgb(16, 22, 38), Theme.Side, LinearGradientMode.Horizontal)) g.FillRectangle(bg, ClientRectangle);
+            // Flat dark header: no decorative artwork or image scaling.
+            using (var bg = new LinearGradientBrush(ClientRectangle, Color.FromArgb(16, 22, 38), Theme.Side, LinearGradientMode.Horizontal))
+                g.FillRectangle(bg, ClientRectangle);
 
             int ls = Theme.S(76);
             var lr = new RectangleF(Theme.S(40), (Height - ls) / 2f, ls, ls);
@@ -772,11 +772,11 @@ namespace FFmpegForge
         }
     }
 
-    /// Drag & drop zone shown when the list is empty (2.1.6: film artwork, big logo, coloured feature chips).
+    /// Dark drag & drop zone shown when the list is empty (no artwork).
     public class DropHint : Control
     {
         public bool Highlight;
-        readonly ArtCache art = new ArtCache("drop.jpg", 0.5f, 0.5f);
+
         public DropHint()
         {
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint | ControlStyles.ResizeRedraw, true);
@@ -797,12 +797,9 @@ namespace FFmpegForge
             g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
             g.Clear(BackColor);
             var outer = new RectangleF(0, 0, Width - 1, Height - 1);
-            var bmp = art.For(ClientSize);
+            // Empty file list: plain dark surface, original interaction and labels.
             using (var clip = Theme.Round(outer, Theme.S(14)))
-            {
-                if (bmp != null) { g.SetClip(clip); g.DrawImageUnscaled(bmp, 0, 0); g.ResetClip(); }
                 if (Highlight) using (var hb = new SolidBrush(Color.FromArgb(40, Theme.Blue))) g.FillPath(hb, clip);
-            }
             var r = new RectangleF(Theme.S(16), Theme.S(16), Width - Theme.S(32), Height - Theme.S(32));
             using (var p = Theme.Round(r, Theme.S(14)))
             using (var pen = new Pen(Highlight ? Theme.Gold : Color.FromArgb(120, 150, 180, 230), Theme.S(1) * 1.3f) { DashStyle = DashStyle.Dash })
