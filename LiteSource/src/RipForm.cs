@@ -48,6 +48,7 @@ namespace FFmpegForge
             ShowInTaskbar = false; MinimizeBox = false;
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
             Build();
+            DarkNativeScroll.Attach(this);
             LoadSettings();
             RefreshDrives();
             UpdateOptionState();
@@ -69,7 +70,7 @@ namespace FFmpegForge
         // ------------------------------------------------------------------ UI
         ComboBox Combo(params object[] items)
         {
-            var c = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Theme.Card, ForeColor = Theme.Text, Font = fUI, Dock = DockStyle.Fill, Margin = new Padding(0, Theme.S(3), Theme.S(10), Theme.S(3)), IntegralHeight = false, MaxDropDownItems = 16 };
+            var c = new DarkCombo { DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Theme.Card, ForeColor = Theme.Text, Font = fUI, Dock = DockStyle.Fill, Margin = new Padding(0, Theme.S(3), Theme.S(10), Theme.S(3)), IntegralHeight = false, MaxDropDownItems = 16 };
             c.Items.AddRange(items);
             if (c.Items.Count > 0) c.SelectedIndex = 0;
             return c;
