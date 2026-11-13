@@ -1,6 +1,6 @@
-# Build a slim Windows portable package from the REAL source included in the
-# upstream release archive. The upstream GitHub main branch currently has
-# outdated v1.1.3a sources while its release archive carries v2.3.0 sources.
+# Build a slim Windows portable package from verified v2.3.0 release source,
+# maintained in LiteSource/. Upstream GitHub main still carries old v1.1.3a source;
+# never build from it. The official release archive supplies only auxiliary binaries.
 [CmdletBinding()]
 param(
     [string]$UpstreamTag = '2.3.0',
@@ -38,7 +38,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw '7z archive extraction failed' }
 
     $app = Join-Path $unpack 'FFmpeg'
-    $sourceDir = Join-Path $app 'Source'
+    $sourceDir = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../LiteSource'))
     if (-not (Test-Path (Join-Path $sourceDir 'src/Controls.cs'))) { throw 'Release Source/src/Controls.cs not found' }
     $program = Get-Content (Join-Path $sourceDir 'src/Program.cs') -Raw
     $versionMatch = [regex]::Match($program, 'AssemblyInformationalVersion\("([^"]+)"\)')
@@ -46,25 +46,29 @@ try {
         throw "Release source version mismatch: expected $UpstreamTag; got '$($versionMatch.Groups[1].Value)'"
     }
 
-    # Keep upstream source intact: modify an isolated build copy only.
+    # Keep the tracked LiteSource source intact: build in an isolated working copy.
     Copy-Item -LiteralPath $sourceDir -Destination (Join-Path $working 'Source') -Recurse
     $buildSource = Join-Path $working 'Source'
     $controls = Join-Path $buildSource 'src/Controls.cs'
     $code = [System.IO.File]::ReadAllText($controls)
-    $pattern = '(?m)^[ \t]*var bmp = art\.For\(ClientSize\);\r?\n[ \t]*if \(bmp != null\) g\.DrawImageUnscaled\(bmp, 0, 0\);\r?\n[ \t]*else using \(var bg = new LinearGradientBrush\(ClientRectangle, Color\.FromArgb\(16, 22, 38\), Theme\.Side, LinearGradientMode\.Horizontal\)\) g\.FillRectangle\(bg, ClientRectangle\);'
-    $rx = [regex]::new($pattern)
-    if ($rx.Matches($code).Count -ne 1) {
-        throw "Upstream header changed; safe patch cannot be applied. No unmodified package will be published."
+    # The two images are disabled directly in maintained source, rather than
+    # applying a fragile regex to newer upstream sources during each build.
+    if ($code -match 'art\.For\(ClientSize\)' -or $code -notmatch 'Flat dark header') {
+        throw "LiteSource banner/drop patch is missing; refusing to package decorative artwork."
     }
-    $replacement = '            // Lite: use a quiet dark background instead of the decorative header artwork.' + "`r`n" +
-                   '            using (var bg = new LinearGradientBrush(ClientRectangle, Color.FromArgb(16, 22, 38), Theme.Side, LinearGradientMode.Horizontal))' + "`r`n" +
-                   '                g.FillRectangle(bg, ClientRectangle);'
-    [System.IO.File]::WriteAllText($controls, $rx.Replace($code, $replacement), [System.Text.UTF8Encoding]::new($false))
-    Write-Host 'Header background artwork has been removed from rendering.'
+    if (-not (Test-Path (Join-Path $buildSource 'src/DarkControls.cs'))) {
+        throw 'LiteSource native dark UI controls are missing'
+    }
+    Write-Host 'UI source verified: both artworks disabled; dark native controls included.'
 
     # Reuse upstream's build command (resources and references are version-specific);
     # disable its interactive pause and validate the newly built binary.
     $bat = Get-Content (Join-Path $buildSource 'build.bat') -Raw
+    # The unused decorative images should not be embedded in the EXE.
+    foreach ($resource in @('/resource:art\header.jpg,header.jpg', '/resource:art\drop.jpg,drop.jpg')) {
+        if (-not $bat.Contains($resource)) { throw "Expected resource absent: $resource" }
+        $bat = $bat.Replace($resource, '')
+    }
     $bat = [regex]::Replace($bat, '(?im)^[ \t]*pause[ \t]*$', 'rem CI: no interactive pause')
     [System.IO.File]::WriteAllText((Join-Path $buildSource 'build-ci.bat'), $bat, [System.Text.Encoding]::Default)
     Push-Location $buildSource
@@ -98,9 +102,10 @@ ffmpeg.exe. Keep ffprobe.exe beside that ffmpeg.exe for media metadata.
 The saved FFmpeg path is reused; PATH and conventional locations are also scanned.
 The portable.txt file keeps settings in the application's directory.
 
-This version is compiled from the complete official release Source, with only
-the decorative header artwork drawing disabled. Other UI and features remain
-based on that upstream version.
+This version is built from the tracked LiteSource/ (official 2.3.0 Source).
+Both decorative UI background images are disabled. Scrollbars and dropdown
+arrows use the dark Windows theme, with batched/anti-flicker settings layouts.
+Other processing features remain based on the upstream 2.3.0 version.
 
 ForgeRTX.exe supports NVIDIA RTX driver processing; dovi_tool.exe is included
 for Dolby Vision workflows. Their original license notices are included.
