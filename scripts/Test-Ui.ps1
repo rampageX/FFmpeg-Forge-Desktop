@@ -32,15 +32,34 @@ try {
         }
     }
     & $walk $form
+    # The scaling controls live in their own tool window; validate BOTH trees.
+    $scaleField = $mainType.GetField('scaleWindow', $flags)
+    if (-not $scaleField) { throw 'Missing independent Scale window' }
+    $scaleForm = $scaleField.GetValue($form)
+    if (-not $scaleForm -or $scaleForm.IsDisposed) { throw 'Scale window was not constructed' }
+    [void]$scaleForm.Handle
+    $mainCount = $all.Count
+    & $walk $scaleForm
     $combos = @($all | Where-Object { $comboType.IsInstanceOfType($_) })
     $scroll = @($all | Where-Object { $_ -is [System.Windows.Forms.ScrollableControl] -and $_.AutoScroll })
-    Write-Host "Main UI: $($all.Count) child controls, $($combos.Count) dark combos, $($scroll.Count) auto-scroll containers."
-    if ($combos.Count -lt 25) { throw 'Missing dark combo controls from the main form' }
+    Write-Host "Main UI: $mainCount child controls. Scale tool: $($all.Count - $mainCount) child controls."
+    Write-Host "Combined: $($combos.Count) dark combos, $($scroll.Count) scroll containers."
+    if ($combos.Count -lt 42) { throw 'Scale and main dark combo controls were not preserved' }
     $numericType = $asm.GetType('FFmpegForge.DarkNumeric', $true)
     $numbers = @($all | Where-Object { $numericType.IsInstanceOfType($_) })
-    Write-Host "Main UI: $($numbers.Count) dark native numeric spinners."
-    if ($numbers.Count -lt 10) { throw 'Main numeric spinner migration incomplete' }
-    if ($scroll.Count -lt 1) { throw 'Settings scroll container not found' }
+    Write-Host "Combined: $($numbers.Count) dark native numeric spinners."
+    if ($numbers.Count -lt 18) { throw 'Numeric spinners disappeared during Scale move' }
+    if ($scroll.Count -lt 2) { throw 'Main/Scale scroll containers missing' }
+    foreach ($sectionName in @('secResVideo','secResImage','secScale','secOpti','secSeed','secVision','secRtx','secCai')) {
+        $section = $mainType.GetField($sectionName, $flags).GetValue($form)
+        if (-not $section) { throw "Missing scale section: $sectionName" }
+        if (-not $section.Parent -or $section.Parent.FindForm() -ne $scaleForm) {
+            throw "Scale control still in main settings: $sectionName"
+        }
+    }
+    $wheelRouter = $mainType.GetField('wheelRouter', $flags).GetValue($form)
+    if (-not $wheelRouter) { throw 'Settings mousewheel router missing' }
+    Write-Host 'PASS: all Scale engines and output-resolution controls moved to the standalone window'
     $headerType = $asm.GetType('FFmpegForge.TopHeader', $true)
     $dropType = $asm.GetType('FFmpegForge.DropHint', $true)
     if ($headerType.GetField('art', $flags) -or $dropType.GetField('art', $flags)) {
@@ -78,6 +97,51 @@ try {
     Write-Host 'UI smoke: toggle pass finished.'
     Write-Host "Dynamic layout toggles: $n transitions / $([Math]::Round($sw.Elapsed.TotalMilliseconds)) ms (unoptimized CI runner)."
     if ($form.IsDisposed) { throw 'Main window closed during layout changes' }
+    Write-Host 'UI smoke: testing actual compatibility routes.'
+    $getC = {
+        param($name)
+        $mainType.GetField($name, $flags).GetValue($form)
+    }
+    $scaleCheck = & $getC 'chkScale'
+    $optiCheck = & $getC 'chkOpti'
+    $seedCheck = & $getC 'chkSeed'
+    $visionCheck = & $getC 'chkVision'
+    $vsrCheck = & $getC 'chkVsr'
+    $hdrCheck = & $getC 'chkHdr'
+    $caiCheck = & $getC 'chkCai'
+    foreach ($c in @($scaleCheck,$optiCheck,$seedCheck,$visionCheck,$vsrCheck,$hdrCheck,$caiCheck)) {
+        $c.Checked = $false
+    }
+    $scaleCheck.Checked = $true
+    $optiCheck.Checked = $true
+    if (-not ($scaleCheck.Checked -and $optiCheck.Checked)) { throw 'Compatible Scale + OptiScaler pair was blocked' }
+    $seedCheck.Checked = $true
+    if ($scaleCheck.Checked -or $optiCheck.Checked) { throw 'SeedVR2 did not switch off incompatible Scale/Opti route' }
+    $visionCheck.Checked = $true
+    if ($seedCheck.Checked) { throw 'VisionNext did not switch off SeedVR2' }
+    $vsrCheck.Checked = $true
+    if ($visionCheck.Checked) { throw 'RTX did not switch off VisionNext' }
+    $hdrCheck.Checked = $true
+    if (-not $vsrCheck.Checked) { throw 'Compatible RTX VSR + TrueHDR pair was incorrectly blocked' }
+    $caiCheck.Checked = $true
+    if (-not $vsrCheck.Checked) { throw 'Custom AI preprocessing incorrectly blocked RTX route' }
+    Write-Host 'PASS: route exclusivity preserves Scale+Opti, VSR+TrueHDR, and Custom AI preprocessing'
+
+    # Show once to exercise actual child visibility, then hide/reopen.
+    $scaleForm.StartPosition = [System.Windows.Forms.FormStartPosition]::Manual
+    $scaleForm.Location = [System.Drawing.Point]::new(-1800, -1800)
+    $scaleForm.Show()
+    [System.Windows.Forms.Application]::DoEvents()
+    $caiModel = $mainType.GetField('cbCaiModel', $flags).GetValue($form)
+    if (-not $caiModel.Visible) { throw 'Custom AI options not expanded when Use my AI is ticked' }
+    $caiCheck.Checked = $false
+    if ($caiModel.Visible) { throw 'Custom AI options did not collapse when unchecked' }
+    $scaleForm.Hide()
+    $scaleForm.Show()
+    [System.Windows.Forms.Application]::DoEvents()
+    if (-not $scaleForm.Visible) { throw 'Scale tool window cannot be reopened' }
+    $scaleForm.Hide()
+    Write-Host 'PASS: custom AI gated expansion and Scale window reopen'
     Write-Host 'PASS: main UI created and all toggle paths completed without exception'
 }
 finally {
