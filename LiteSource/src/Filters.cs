@@ -395,6 +395,7 @@ namespace FFmpegForge
             MinimizeBox = false;
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
             Build();
+            DarkNativeScroll.Attach(this);
             Fill();
             if (edit != null)
             {
@@ -415,7 +416,7 @@ namespace FFmpegForge
             search.TextChanged += (s, e) => Fill();
             search.KeyDown += (s, e) => { if (e.KeyCode == Keys.Down && lv.Items.Count > 0) { lv.Focus(); lv.Items[0].Selected = true; } };
             Cue(search, "Search 500+ filters… (name or description)");
-            cbCat = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Theme.Card, ForeColor = Theme.Text, Font = fUI, Margin = new Padding(0, Theme.S(4), 0, 0) };
+            cbCat = new DarkCombo { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Theme.Card, ForeColor = Theme.Text, Font = fUI, Margin = new Padding(0, Theme.S(4), 0, 0) };
             cbCat.Items.AddRange(new object[] { "All filters", "Video", "Audio", "Multi / conversion", "Source", "Sink", "Timeline (enable) support" });
             cbCat.SelectedIndex = 0;
             cbCat.SelectedIndexChanged += (s, e) => Fill();
@@ -466,7 +467,7 @@ namespace FFmpegForge
             head.Resize += (s, e) => { btnDocs.Location = new Point(head.Width - btnDocs.Width, 0); descLbl.Width = head.Width - btnDocs.Width - Theme.S(10); };
 
             var optTitle = new Label { Text = "PARAMETERS  (leave empty = FFmpeg default · hover a name for help · expressions allowed)", Dock = DockStyle.Top, Height = Theme.S(26), ForeColor = Theme.Accent1, Font = fSec, TextAlign = ContentAlignment.BottomLeft };
-            optHost = new Panel { Dock = DockStyle.Fill, AutoScroll = true, BackColor = Theme.Panel, Padding = new Padding(Theme.S(12), Theme.S(8), Theme.S(12), Theme.S(8)) };
+            optHost = new SmoothSettingsPanel { Dock = DockStyle.Fill, AutoScroll = true, BackColor = Theme.Panel, Padding = new Padding(Theme.S(12), Theme.S(8), Theme.S(12), Theme.S(8)) };
             loadingLbl = new Label { Text = "", ForeColor = Theme.Muted, AutoSize = true, Location = new Point(Theme.S(12), Theme.S(12)) };
             optHost.Controls.Add(loadingLbl);
 
@@ -487,7 +488,7 @@ namespace FFmpegForge
             exprBox = new TextBox { Dock = DockStyle.Fill, Multiline = true, BackColor = Theme.Card, ForeColor = Color.FromArgb(255, 214, 140), BorderStyle = BorderStyle.FixedSingle, Font = fMono, ScrollBars = ScrollBars.Vertical };
             var kindHost = new Panel { Dock = DockStyle.Right, Width = Theme.S(170), BackColor = Theme.Bg, Padding = new Padding(Theme.S(10), 0, 0, 0) };
             kindLbl = new Label { Text = "Apply to", Dock = DockStyle.Top, Height = Theme.S(20), ForeColor = Theme.Muted, Font = fSmall };
-            cbKind = new ComboBox { Dock = DockStyle.Top, DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Theme.Card, ForeColor = Theme.Text };
+            cbKind = new DarkCombo { Dock = DockStyle.Top, DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Theme.Card, ForeColor = Theme.Text };
             cbKind.Items.AddRange(new object[] { "Video stream", "Audio stream", "Filtergraph (advanced)" });
             cbKind.SelectedIndex = 0;
             kindHost.Controls.Add(cbKind); kindHost.Controls.Add(kindLbl);
@@ -600,7 +601,7 @@ namespace FFmpegForge
             if (h.NoOutputs) io += "   Outputs: none (sink)"; else if (h.DynOutputs) io += "   Outputs: dynamic"; else if (h.Outputs.Count > 0) io += "   Outputs: " + string.Join(", ", h.Outputs.ToArray());
             if (io.Length > 0) ioLbl.Text = ioLbl.Text + "     " + io;
 
-            optTable = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, ColumnCount = 3, BackColor = Theme.Panel };
+            optTable = new SmoothSettingsTable { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, ColumnCount = 3, BackColor = Theme.Panel };
             optTable.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, Theme.S(170)));
             optTable.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, Theme.S(230)));
             optTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -649,7 +650,7 @@ namespace FFmpegForge
             Control c;
             if (t == "boolean" || t == "bool")
             {
-                var cb = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList };
+                var cb = new DarkCombo { DropDownStyle = ComboBoxStyle.DropDownList };
                 cb.Items.AddRange(new object[] { "", "true", "false" });
                 cb.SelectedIndex = 0;
                 cb.SelectedIndexChanged += (s, e) => Regenerate();
@@ -657,7 +658,7 @@ namespace FFmpegForge
             }
             else if (o.Consts.Count > 0)
             {
-                var cb = new ComboBox { DropDownStyle = ComboBoxStyle.DropDown, MaxDropDownItems = 20 };
+                var cb = new DarkCombo { DropDownStyle = ComboBoxStyle.DropDown, MaxDropDownItems = 20 };
                 cb.Items.Add("");
                 foreach (var k in o.Consts) cb.Items.Add(k[0]);
                 cb.TextChanged += (s, e) => Regenerate();
