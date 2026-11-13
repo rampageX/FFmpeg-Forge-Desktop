@@ -12,16 +12,16 @@ using System.Windows.Forms;
 
 namespace FFmpegForge
 {
-    public class MainForm : Form
+    public partial class MainForm : Form
     {
         // ---- controls ----
         TopHeader header;
         TableLayoutPanel secFormat, secCai;
+        readonly List<Control> caiRows = new List<Control>();
         // compression assistant (2.1)
         CardTable advCard; Label lblAdvTitle, lblAdvMsg, lblAdvFacts, lblAdvNote; FlatBtn btnAdvApply, btnAdvMeasure, btnAdvIgnore, btnOptPreset;
         CheckBox chkSuggest; Job advJob, advForced; bool advMeasuring;
         ComboBox cbCover; NumericUpDown nuCoverAt; Label lblCoverFile; string coverPath;
-        ComboBox cbRtxVid, cbRtxImg; Label lblRtxVid, lblRtxImg;
         TableLayoutPanel secTracks; CheckBox chkKeepVideo; ComboBox cbExistingAudio, cbTrackLang; ListBox lbTracks; TextBox txtTrackTitle; NumericUpDown nuTrackDelay; CheckBox chkTrackDefault; Label lblTracksInfo; bool trackSync;
         readonly List<ExtraTrack> extraTracks = new List<ExtraTrack>();
         ComboBox cbSeqExport; Label lblSeqInfo; CheckBox chkSeqPng, chkSeqJpg;
@@ -146,6 +146,7 @@ namespace FFmpegForge
             BuildUI();
             DarkNativeScroll.Attach(this);  // attach once; theme handles on creation, never per paint
             ApplySettings();
+            WireScaleRouteEvents();
 
             DragEnter += OnDragEnter; DragDrop += OnDragDrop; DragLeave += (s, e) => { dropHint.Highlight = false; dropHint.Invalidate(); };
             FormClosing += OnClosing;
@@ -283,7 +284,8 @@ namespace FFmpegForge
             cbVCodec.SelectedIndexChanged += (s2, e2) => UpdateNvCrfRow();
             AddRow(secVideo, "Bitrate (kbps, 0 = auto)", nuVBitrate);
             AddRow(secVideo, "Encoding speed", cbPreset);
-            resVideo = MakeRes(secVideo, new[] {
+            secResVideo = Section("VIDEO OUTPUT RESOLUTION");
+            resVideo = MakeRes(secResVideo, new[] {
                 "Original", "8K UHD — 7680×4320", "DCI 4K — 4096×2160", "4K UHD — 3840×2160", "1440p — 2560×1440", "DCI 2K — 2048×1080",
                 "Full HD — 1920×1080", "HD — 1280×720", "PAL SD — 720×576", "NTSC SD — 720×480",
                 "Height 2160 (keep ratio)", "Height 1080 (keep ratio)", "Height 720 (keep ratio)", "Height 480 (keep ratio)", "Height 360 (keep ratio)", "Height 240 (keep ratio)",
@@ -326,11 +328,6 @@ namespace FFmpegForge
             tips.SetToolTip(cbDeintOrder, "Auto uses the field order written in the file. If motion judders back and forth after deinterlacing,\n" +
                 "force the other field order. Forcing TFF or BFF also deinterlaces files that are not flagged as interlaced.");
             AddRow(secVideo, "Image → video length (s)", nuStill);
-            cbRtxVid = Combo("Off", "×2", "×3", "×4");
-            AddRow(secVideo, "NVIDIA RTX Video", cbRtxVid);
-            lblRtxVid = new Label { Text = "", ForeColor = Theme.Muted, Font = fSmall, AutoSize = true, MaximumSize = new Size(Theme.S(380), 0), Margin = new Padding(0, 0, 0, Theme.S(4)), Visible = false };
-            AddRow(secVideo, null, lblRtxVid);
-            tips.SetToolTip(cbRtxVid, "NVIDIA RTX Video Super Resolution: AI upscaling ×2, ×3 or ×4 by your NVIDIA RTX GPU,\nwith clean-up of compression artefacts. Same engine as the NVIDIA RTX AI section (quality, engine).");
             AddRow(secVideo, null, chkSubs);
             // cover / thumbnail (MP4, M4V, MOV: attached picture; MKV: cover.jpg attachment)
             cbCover = Combo("None", "Frame of the video at (s)", "Image file…");
@@ -712,7 +709,8 @@ namespace FFmpegForge
             cbExtract = Combo("Single frame", "Every frame", "One frame every N s");
             cbExtract.SelectedIndexChanged += (s, e) => UpdateExtractLabel();
             nuExtractVal = Num(0, 360000, 1, 2);
-            resImage = MakeRes(secImage, new[] {
+            secResImage = Section("IMAGE OUTPUT RESOLUTION");
+            resImage = MakeRes(secResImage, new[] {
                 "Original", "Width 7680", "Width 3840", "Width 2560", "Width 1920", "Width 1280", "Width 1024", "Width 800", "Width 640", "Width 512",
                 "Width 256", "Width 128", "Width 64", "Width 32", "Width 16", "1920×1080", "1080×1920", "1080×1080", "512×512 (icons)", "256×256 (icons)", "Custom…" },
                 new[] { 0, 7680, 3840, 2560, 1920, 1280, 1024, 800, 640, 512, 256, 128, 64, 32, 16, 1920, 1080, 1080, 512, 256, -1 },
@@ -728,11 +726,6 @@ namespace FFmpegForge
             cbHdrImg.SelectedIndexChanged += (s2, e2) => UpdateHdrRows();
             tips.SetToolTip(cbHdrImg, "HDR picture: PNG 16-bit with the cICP HDR tag (PNG 3rd edition) or AVIF 10-bit, BT.2020 PQ.\n" +
                 "Shown in HDR by Chrome, Edge, Windows Photos (HDR display on) and recent phones. Dolby Vision has no picture format.");
-            cbRtxImg = Combo("Off", "×2", "×3", "×4");
-            AddRow(secImage, "NVIDIA RTX Video", cbRtxImg);
-            lblRtxImg = new Label { Text = "", ForeColor = Theme.Muted, Font = fSmall, AutoSize = true, MaximumSize = new Size(Theme.S(380), 0), Margin = new Padding(0, 0, 0, Theme.S(4)), Visible = false };
-            AddRow(secImage, null, lblRtxImg);
-            tips.SetToolTip(cbRtxImg, "NVIDIA RTX Video Super Resolution on pictures: AI upscaling ×2, ×3 or ×4 by your NVIDIA RTX GPU\n(built-in NVIDIA driver engine, ForgeRTX).");
             AddRow(secImage, "From a video", cbExtract);
             lblExtractVal = AddRow(secImage, "Position (s)", nuExtractVal);
             stack.Controls.Add(secImage);
@@ -805,38 +798,12 @@ namespace FFmpegForge
             AddRow(secOut, "Extra FFmpeg arguments", txtCustom);
             stack.Controls.Add(secOut);
 
-            // ---------- NVIDIA RTX Video rows (Video / Image settings) = shortcuts to RTX Video Super Resolution ----------
-            bool rtxSync = false;
-            Action rtxInfo = () =>
-            {
-                int v = cbRtxVid.SelectedIndex, im = cbRtxImg.SelectedIndex;
-                string eng = Rtx.HasDriver ? "NVIDIA driver engine (ForgeRTX)" : Rtx.NativeVsr ? "FFmpeg RTX filters" : Rtx.HasProcessor ? "RTXVideoProcessor" : null;
-                lblRtxVid.Visible = v > 0;
-                lblRtxVid.Text = "RTX Video Super Resolution ×" + (v + 1) + " · " + (eng != null ? eng : "no RTX engine found (see NVIDIA RTX AI)") + "\nNeeds an NVIDIA RTX GPU and \"RTX Video Enhancement\" enabled in the NVIDIA App.";
-                lblRtxVid.ForeColor = eng != null ? Theme.Muted : Theme.Accent1;
-                lblRtxImg.Visible = im > 0;
-                lblRtxImg.Text = "RTX Video Super Resolution ×" + (im + 1) + " · " + (Rtx.HasDriver ? "NVIDIA driver engine (ForgeRTX)" : "ForgeRTX.exe missing next to FFmpegForge.exe") + "\nNeeds an NVIDIA RTX GPU.";
-                lblRtxImg.ForeColor = Rtx.HasDriver ? Theme.Muted : Theme.Accent1;
-            };
-            cbRtxVid.SelectedIndexChanged += (s2, e2) =>
-            {
-                if (!rtxSync) { rtxSync = true; chkVsr.Checked = cbRtxVid.SelectedIndex > 0; if (cbRtxVid.SelectedIndex > 0) cbVsrScale.SelectedIndex = cbRtxVid.SelectedIndex - 1; rtxSync = false; }
-                rtxInfo();
-            };
-            EventHandler fromRtx = (s2, e2) =>
-            {
-                if (rtxSync) return; rtxSync = true;
-                cbRtxVid.SelectedIndex = chkVsr.Checked ? Math.Max(0, cbVsrScale.SelectedIndex) + 1 : 0;
-                rtxSync = false; rtxInfo();
-            };
-            chkVsr.CheckedChanged += fromRtx; cbVsrScale.SelectedIndexChanged += fromRtx;
-            cbRtxImg.SelectedIndexChanged += (s2, e2) => rtxInfo();
-
             // ---------- options column (1.1.5 layout: every section stacked on the right) ----------
             var right = new SmoothSettingsPanel { Dock = DockStyle.Right, Width = Theme.S(490), BackColor = Theme.Bg, AutoScroll = true, Padding = new Padding(Theme.S(4), Theme.S(16), Theme.S(18), Theme.S(16)) };
             stack.Dock = DockStyle.Top;
             foreach (Control c in stack.Controls) { c.Dock = DockStyle.Fill; if (c is CardTable) c.Margin = new Padding(0, 0, 0, Theme.S(14)); }
             right.Controls.Add(stack);
+            BuildScaleWindow(stack, right);
 
             // ---------- footer ----------
             var footer = new Panel { Dock = DockStyle.Bottom, Height = Theme.S(96), BackColor = Theme.Side, Padding = new Padding(Theme.S(28), Theme.S(18), Theme.S(24), Theme.S(18)) };
@@ -1224,17 +1191,19 @@ namespace FFmpegForge
                 ? (fl.Count + dyn.Count) + " " + kn + " formats  (" + fl.Count + " tuned presets + " + dyn.Count + " from your FFmpeg build)"
                 : fl.Count + " " + kn + " formats" + (FormatCatalog.Loaded ? "" : "  — reading every FFmpeg format…");
             secVideo.Visible = k == MediaKind.Video;
-            secRtx.Visible = k == MediaKind.Video;
+            secRtx.Visible = k != MediaKind.Audio;
             secScale.Visible = k != MediaKind.Audio;
             secSeed.Visible = k != MediaKind.Audio;
             secVision.Visible = k != MediaKind.Audio;
             UpdateVisionRows();
             UpdateSeedRows();
             secOpti.Visible = k != MediaKind.Audio;
+            secCai.Visible = k != MediaKind.Audio;
             secDn.Visible = k != MediaKind.Audio;
             secAudio.Visible = k != MediaKind.Image;
             if (secTracks != null) secTracks.Visible = k == MediaKind.Video;
             secImage.Visible = k == MediaKind.Image;
+            UpdateScaleCategory();
             OnFormatChanged();
         }
 
@@ -1703,8 +1672,8 @@ namespace FFmpegForge
             using (UiLayoutBatch.Begin(secRtx))
             {
             foreach (var c in vsrRows) if (c != null) c.Visible = chkVsr.Checked;
-            foreach (var c in hdrRows) if (c != null) c.Visible = chkHdr.Checked;
-            foreach (var c in dlssRows) if (c != null) c.Visible = chkDlss.Checked;
+            foreach (var c in hdrRows) if (c != null) c.Visible = chkHdr.Checked && category == MediaKind.Video;
+            foreach (var c in dlssRows) if (c != null) c.Visible = chkDlss.Checked && category == MediaKind.Video;
             }
         }
 
@@ -2029,7 +1998,7 @@ namespace FFmpegForge
             s.KeepVideo = s.Format != null && s.Format.Kind == MediaKind.Video && chkKeepVideo.Checked;
             s.ExistingAudio = s.Format != null && s.Format.Kind == MediaKind.Video ? Math.Max(0, cbExistingAudio.SelectedIndex) : 0;
             s.ExtraAudio = s.Format != null && s.Format.Kind == MediaKind.Video ? new List<ExtraTrack>(extraTracks) : new List<ExtraTrack>();
-            s.RtxVsr = chkVsr.Checked && s.Format.Kind == MediaKind.Video;
+            s.RtxVsr = chkVsr.Checked && s.Format.Kind != MediaKind.Audio;
             s.RtxHdr = chkHdr.Checked && s.Format.Kind == MediaKind.Video;
             s.Dlss = chkDlss.Checked && s.Format.Kind == MediaKind.Video;
             s.VsrQuality = cbVsrQ.SelectedIndex + 1;
@@ -2074,7 +2043,6 @@ namespace FFmpegForge
             s.VolumePct = (int)nuVolume.Value;
             s.ImgQuality = tbImgQ.Value;
             s.ExtractMode = cbExtract.SelectedIndex;
-            if (s.Format.Kind == MediaKind.Image && cbRtxImg.SelectedIndex > 0) { s.RtxVsr = true; s.VsrScale = cbRtxImg.SelectedIndex + 1; s.RtxHdr = false; s.Dlss = false; }
             s.ExtractAt = (double)nuExtractVal.Value;
             s.ExtractEvery = (double)nuExtractVal.Value;
             s.TrimStart = ParseTime(txtStart.Text);
@@ -2820,7 +2788,7 @@ namespace FFmpegForge
             AddRow(secCai, null, chkCai);
             cbCaiModel = Combo();
             cbCaiModel.DropDownWidth = Theme.S(380);
-            AddRow(secCai, "   Model", cbCaiModel);
+            caiRows.Add(AddRow(secCai, "   Model", cbCaiModel)); caiRows.Add(cbCaiModel);
             var bImp = Btn("Import model…", 0); bImp.Primary = true;
             var bRem = Btn("Remove", 0);
             var bFol = Btn("Open models folder", 0);
@@ -2829,21 +2797,21 @@ namespace FFmpegForge
             for (int i = 0; i < 4; i++) bar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
             int bi = 0;
             foreach (var b in new[] { bImp, bRem, bFol, bTpl }) { b.Dock = DockStyle.Fill; b.Height = Theme.S(32); b.Font = fSmall; b.Margin = new Padding(0, 0, Theme.S(6), 0); bar.Controls.Add(b, bi++, 0); }
-            AddRow(secCai, null, bar);
+            AddRow(secCai, null, bar); caiRows.Add(bar);
             cbCaiSize = Combo("Model scale (upscalers enlarge the picture)", "Keep the original size");
-            AddRow(secCai, "   Output size", cbCaiSize);
+            caiRows.Add(AddRow(secCai, "   Output size", cbCaiSize)); caiRows.Add(cbCaiSize);
             cbCaiProc = Combo("GPU (NVIDIA CUDA) — fast", "CPU — slower, no NVIDIA card");
-            AddRow(secCai, "   Processor", cbCaiProc);
+            caiRows.Add(AddRow(secCai, "   Processor", cbCaiProc)); caiRows.Add(cbCaiProc);
             cbCaiPrec = Combo("Half precision fp16 (fast)", "Full precision fp32 (exact)");
-            AddRow(secCai, "   Precision", cbCaiPrec);
+            caiRows.Add(AddRow(secCai, "   Precision", cbCaiPrec)); caiRows.Add(cbCaiPrec);
             cbCaiTile = Combo("Auto (from GPU memory)", "256", "512", "1024", "Whole frame");
-            AddRow(secCai, "   Tile size", cbCaiTile);
+            caiRows.Add(AddRow(secCai, "   Tile size", cbCaiTile)); caiRows.Add(cbCaiTile);
             lblCaiRuntime = new Label { Text = "", Font = fSmall, AutoSize = true, MaximumSize = new Size(Theme.S(380), 0), Margin = new Padding(0, Theme.S(6), 0, Theme.S(2)) };
-            AddRow(secCai, null, lblCaiRuntime);
+            AddRow(secCai, null, lblCaiRuntime); caiRows.Add(lblCaiRuntime);
             var bRt = Btn("Install AI runtime…  (PyTorch CUDA, ONNX Runtime GPU, spandrel)", 0); bRt.Dock = DockStyle.Fill; bRt.Height = Theme.S(32); bRt.Font = fSmall;
-            AddRow(secCai, null, bRt); caiRuntimeBtn = bRt;
+            AddRow(secCai, null, bRt); caiRuntimeBtn = bRt; caiRows.Add(bRt);
             lblCaiInfo = new Label { Text = "", ForeColor = Theme.Muted, Font = fSmall, AutoSize = true, MaximumSize = new Size(Theme.S(380), 0), Margin = new Padding(0, Theme.S(6), 0, 0) };
-            AddRow(secCai, null, lblCaiInfo);
+            AddRow(secCai, null, lblCaiInfo); caiRows.Add(lblCaiInfo);
             tips.SetToolTip(chkCai, "Runs your model on every frame of the export, before Scale, RTX, SeedVR2 and VisionNext.\nYour format, codec, audio, trim and filters are kept.");
             tips.SetToolTip(bImp, "ONNX (.onnx), PyTorch (.pth .pt .ckpt .safetensors .bin — ESRGAN, SwinIR, HAT, DAT, SPAN, SCUNet, NAFNet, Restormer…)\nor a Python script (.py) with load(device) or process(img). The file is copied into FFmpeg Forge's models\\custom folder.");
             tips.SetToolTip(cbCaiTile, "Big pictures are processed in tiles that fit the GPU memory (blended, no seams).\nONNX models with a fixed input size always use their own size.");
@@ -2905,6 +2873,8 @@ namespace FFmpegForge
             using (UiLayoutBatch.Begin(secCai))
             {
             if (secCai == null) return;
+            foreach (var c in caiRows) if (c != null) c.Visible = chkCai.Checked;
+            if (!chkCai.Checked) return;
             string m = cbCaiModel.SelectedItem as string;
             string miss = m == null ? null : CustomAi.Missing(m);
             bool rtOk = AiDenoise.Python != null && CustomAi.HasOnnx && AiDenoise.HasSpandrel;
@@ -3473,8 +3443,6 @@ namespace FFmpegForge
                         if (eq > 0 && double.TryParse(kv.Substring(eq + 1), NumberStyles.Float, CultureInfo.InvariantCulture, out hv) && hv > 0) Compression.History[kv.Substring(0, eq)] = hv;
                     }
             }
-            cbRtxImg.SelectedIndex = Math.Max(0, Math.Min(3, gi("rtx_img", 0)));
-            cbRtxVid.SelectedIndex = chkVsr.Checked ? Math.Max(0, cbVsrScale.SelectedIndex) + 1 : 0;
             chkCai.Checked = gi("cai_on", 0) == 1;
             { string cm; if (settings.TryGetValue("cai_model", out cm)) RefreshCaiModels(cm); }
             cbCaiSize.SelectedIndex = gi("cai_keep", 0) == 1 ? 1 : 0;
@@ -3513,6 +3481,13 @@ namespace FFmpegForge
             cbQuality.SelectedIndex = 1;
             cbPreset.SelectedIndex = 3;
             SetCategory(k);
+            // Upgrade old image-only RTX shortcut setting to the unified VSR option.
+            if (k == MediaKind.Image && !chkVsr.Checked && gi("rtx_img", 0) > 0)
+            {
+                chkVsr.Checked = true;
+                cbVsrScale.SelectedIndex = Math.Max(0, Math.Min(2, gi("rtx_img", 1) - 1));
+            }
+            UpdateScaleCategory();
             UpdateExtractLabel();
             UpdateEmpty();
         }
@@ -3544,7 +3519,6 @@ namespace FFmpegForge
                 settings["cover_at"] = ((double)nuCoverAt.Value).ToString(CultureInfo.InvariantCulture);
                 settings["cover_path"] = coverPath ?? "";
                 settings["speedhist"] = string.Join(";", Compression.History.Select(kv => kv.Key + "=" + kv.Value.ToString("0.####", CultureInfo.InvariantCulture)).ToArray());
-                settings["rtx_img"] = cbRtxImg.SelectedIndex.ToString(CultureInfo.InvariantCulture);
                 settings["vseq"] = cbSeqExport.SelectedIndex.ToString(CultureInfo.InvariantCulture);
                 settings["keepvideo"] = chkKeepVideo.Checked ? "1" : "0";
                 settings["sdrhdr"] = cbHdr.SelectedIndex.ToString(CultureInfo.InvariantCulture);
