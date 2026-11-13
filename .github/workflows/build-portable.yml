@@ -7,6 +7,7 @@ on:
       - '.github/workflows/build-portable.yml'
       - 'scripts/Build-Portable.ps1'
       - 'LiteSource/**'
+      - 'scripts/Test-Ui.ps1'
   workflow_dispatch:
     inputs:
       upstream_tag:
@@ -42,6 +43,12 @@ jobs:
           UPSTREAM_TAG: ${{ inputs.upstream_tag || '2.3.0' }}
         run: |
           ./scripts/Build-Portable.ps1 -UpstreamTag $env:UPSTREAM_TAG -Suffix rampage.2 -OutputDir dist
+
+      - name: Smoke-test WinForms creation and expand/collapse under STA
+        shell: pwsh
+        run: |
+          & powershell.exe -NoProfile -Sta -ExecutionPolicy Bypass -File scripts/Test-Ui.ps1
+          if ($LASTEXITCODE -ne 0) { throw "UI runtime smoke failed ($LASTEXITCODE)" }
 
       - name: Upload ZIP for testing
         uses: actions/upload-artifact@v4
