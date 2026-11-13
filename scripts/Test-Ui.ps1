@@ -44,6 +44,8 @@ try {
     }
     $sw = [Diagnostics.Stopwatch]::StartNew()
     Write-Host 'UI smoke: enumerating toggles.'
+    $loadingField = $mainType.GetField('loadingSettings', $flags)
+    if (-not $loadingField) { throw 'Missing initialization guard for AI install prompts' }
     $n = 0
     foreach ($fieldName in @('chkScale','chkOpti','chkDn','chkVsr','chkHdr','chkDlss','chkVision','chkSeed')) {
         $field = $mainType.GetField($fieldName, $flags)
@@ -52,12 +54,20 @@ try {
         if ($null -eq $check) { throw "Null toggle: $fieldName" }
         $original = $check.Checked
         $one = [Diagnostics.Stopwatch]::StartNew()
-        Write-Host ("UI smoke: " + $fieldName + " first toggle")
-        $check.Checked = -not $original
-        Write-Host ("UI smoke: " + $fieldName + " first done in " + $one.ElapsedMilliseconds + " ms")
-        $check.Checked = $original
-        $one.Stop()
-        Write-Host ("UI smoke: " + $fieldName + " restored in " + $one.ElapsedMilliseconds + " ms")
+        $priorLoading = $loadingField.GetValue($form)
+        # AI Denoiser normally opens a modal install confirmation when first enabled.
+        # In a headless CI test we must exercise layout WITHOUT waiting on that dialog.
+        if ($fieldName -eq 'chkDn') { $loadingField.SetValue($form, $true) }
+        try {
+            Write-Host ("UI smoke: " + $fieldName + " first toggle")
+            $check.Checked = -not $original
+            Write-Host ("UI smoke: " + $fieldName + " first done in " + $one.ElapsedMilliseconds + " ms")
+            $check.Checked = $original
+            $one.Stop()
+            Write-Host ("UI smoke: " + $fieldName + " restored in " + $one.ElapsedMilliseconds + " ms")
+        } finally {
+            $loadingField.SetValue($form, $priorLoading)
+        }
         $n += 2
     }
     $sw.Stop()
