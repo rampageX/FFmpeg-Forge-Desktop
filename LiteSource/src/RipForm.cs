@@ -94,10 +94,12 @@ namespace FFmpegForge
 
         void Build()
         {
-            var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5, BackColor = Theme.Bg, Padding = new Padding(Theme.S(18), Theme.S(14), Theme.S(18), Theme.S(14)) };
+            // All rows fit the available client width; add native scrollbars only
+            // when OS text scaling or a small screen makes content truly overflow.
+            var root = new TableLayoutPanel { Dock = DockStyle.Fill, AutoScroll = true, ColumnCount = 1, RowCount = 5, BackColor = Theme.Bg, Padding = new Padding(Theme.S(18), Theme.S(14), Theme.S(18), Theme.S(14)) };
             root.RowStyles.Add(new RowStyle(SizeType.AutoSize));          // source
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 48));       // titles + tracks
-            root.RowStyles.Add(new RowStyle(SizeType.AutoSize));          // options
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, Theme.S(286))); // compact fixed-size options: no autosize width explosion
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 22));       // log
             root.RowStyles.Add(new RowStyle(SizeType.AutoSize));          // buttons
 
@@ -182,8 +184,23 @@ namespace FFmpegForge
             root.Controls.Add(mid, 0, 1);
 
             // ---------- options ----------
-            var opt = new CardTable { Dock = DockStyle.Fill, AutoSize = true, BackColor = Theme.Panel, Padding = new Padding(Theme.S(12), Theme.S(8), Theme.S(12), Theme.S(10)), ColumnCount = 6, Margin = new Padding(0, Theme.S(10), 0, Theme.S(10)) };
-            for (int i = 0; i < 3; i++) { opt.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize)); opt.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.3f)); }
+            // Fixed label widths + proportional input columns. In the old layout
+            // AutoSize and Percent fought each other, making the option card wider
+            // than even a maximized window. Keep the 3-group format but bound it.
+            var opt = new CardTable { Dock = DockStyle.Fill, AutoSize = false, BackColor = Theme.Panel,
+                Padding = new Padding(Theme.S(12), Theme.S(8), Theme.S(12), Theme.S(10)),
+                ColumnCount = 6, RowCount = 6,
+                Margin = new Padding(0, Theme.S(10), 0, Theme.S(10)) };
+            opt.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, Theme.S(64)));
+            opt.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 34));
+            opt.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, Theme.S(84)));
+            opt.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 42));
+            opt.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, Theme.S(88)));
+            opt.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 24));
+            for (int i = 0; i < 3; i++) opt.RowStyles.Add(new RowStyle(SizeType.Absolute, Theme.S(36)));
+            opt.RowStyles.Add(new RowStyle(SizeType.Absolute, Theme.S(38))); // output path
+            opt.RowStyles.Add(new RowStyle(SizeType.Absolute, Theme.S(40))); // checkboxes
+            opt.RowStyles.Add(new RowStyle(SizeType.Percent, 100));           // wrapping notes
             cbFormat = Combo("MKV — keeps everything (recommended)", "MP4 — plays everywhere", "MOV — Apple / editing", "WebM — AV1 + Opus",
                              "FLAC — audio only, lossless", "MP3 — audio only", "M4A (AAC) — audio only", "WAV — audio only, uncompressed", "MKA — audio only, all tracks");
             cbVideo = Combo("Copy — original quality, no re-encoding", "H.264 (x264)", "H.265 / HEVC (x265, 10-bit)", "AV1 (SVT-AV1, 10-bit)", "H.264 — NVIDIA NVENC", "H.265 — NVIDIA NVENC (10-bit)", "AV1 — NVIDIA NVENC (RTX 40/50)");
@@ -194,6 +211,22 @@ namespace FFmpegForge
             cbAudio = Combo("Copy — original (lossless)", "AAC", "Dolby Digital (AC-3)", "Dolby Digital Plus (E-AC-3)", "FLAC (lossless)", "Opus", "MP3");
             cbKbps = Combo("Automatic", "128 kb/s", "160 kb/s", "192 kb/s", "256 kb/s", "320 kb/s", "384 kb/s", "448 kb/s", "640 kb/s");
             cbSubs = Combo("Keep the ticked subtitles (MKV)", "No subtitles", "Burn the first ticked subtitle into the picture");
+            // Visible fields stay compact; long selections remain readable in
+            // the dropdown popup rather than expanding the entire form.
+            cbFormat.MaximumSize = new Size(Theme.S(300), 0);
+            cbVideo.MaximumSize = new Size(Theme.S(345), 0);
+            cbQuality.MaximumSize = new Size(Theme.S(190), 0);
+            cbSpeed.MaximumSize = new Size(Theme.S(210), 0);
+            cbRes.MaximumSize = new Size(Theme.S(245), 0);
+            cbDeint.MaximumSize = new Size(Theme.S(190), 0);
+            cbAudio.MaximumSize = new Size(Theme.S(300), 0);
+            cbKbps.MaximumSize = new Size(Theme.S(245), 0);
+            cbSubs.MaximumSize = new Size(Theme.S(190), 0);
+            cbFormat.DropDownWidth = Theme.S(310);
+            cbVideo.DropDownWidth = Theme.S(365);
+            cbAudio.DropDownWidth = Theme.S(305);
+            cbSubs.DropDownWidth = Theme.S(365);
+            cbDeint.DropDownWidth = Theme.S(230);
             chkDownmix = Check("Downmix audio to stereo", false);
             chkChapters = Check("Keep chapters", true);
             chkAdd = Check("Add the ripped files to the list (to convert / upscale them further)", true);
@@ -210,7 +243,10 @@ namespace FFmpegForge
             var checks = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, BackColor = Theme.Panel, Margin = new Padding(0) };
             checks.Controls.Add(chkDownmix); checks.Controls.Add(chkChapters); checks.Controls.Add(chkAdd);
             opt.Controls.Add(checks, 0, 4); opt.SetColumnSpan(checks, 6);
-            lblNote = Lbl("", fSmall, Theme.Gold); lblNote.MaximumSize = new Size(Theme.S(1100), 0);
+            lblNote = Lbl("", fSmall, Theme.Gold);
+            lblNote.AutoSize = false;
+            lblNote.Dock = DockStyle.Fill;
+            lblNote.Margin = new Padding(Theme.S(2), Theme.S(4), Theme.S(4), 0);
             opt.Controls.Add(lblNote, 0, 5); opt.SetColumnSpan(lblNote, 6);
             foreach (var c in new Control[] { cbFormat, cbVideo, cbAudio, cbSubs, cbRes, cbDeint, cbQuality, cbSpeed, cbKbps }) ((ComboBox)c).SelectedIndexChanged += (s, e) => UpdateOptionState();
             chkDownmix.CheckedChanged += (s, e) => UpdateOptionState();
@@ -224,7 +260,10 @@ namespace FFmpegForge
             var bottom = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, ColumnCount = 4, BackColor = Theme.Bg, Margin = new Padding(0, Theme.S(10), 0, 0) };
             bottom.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             for (int i = 0; i < 3; i++) bottom.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            bar = new ProgressBar { Dock = DockStyle.Fill, Height = Theme.S(10), Margin = new Padding(0, Theme.S(16), Theme.S(16), 0), Maximum = 1000 };
+            // This used to be a native ProgressBar stretched by Dock=Fill:
+            // its Windows light theme created the large white bottom strip.
+            bar = new DarkProgressBar { Dock = DockStyle.Fill, Height = Theme.S(12),
+                Margin = new Padding(0, Theme.S(17), Theme.S(16), Theme.S(17)), Maximum = 1000 };
             btnRip = Btn("RIP", 170, true); btnRip.Glow = true; btnRip.Icon = "refresh"; btnRip.Height = Theme.S(44); btnRip.Click += (s, e) => StartRip();
             btnCancel = Btn("Cancel", 110); btnCancel.Icon = "x"; btnCancel.Height = Theme.S(44); btnCancel.Enabled = false; btnCancel.Click += (s, e) => { cancel = true; Log("Cancelling…", Theme.Gold); };
             var bClose = Btn("Close", 110); bClose.Height = Theme.S(44); bClose.Click += (s, e) => Close();
