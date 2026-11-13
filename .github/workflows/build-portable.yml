@@ -1,0 +1,76 @@
+name: Build FFmpeg Forge Lite
+
+on:
+  push:
+    branches: [main, forge/portable-lite]
+    paths:
+      - '.github/workflows/build-portable.yml'
+      - 'scripts/Build-Portable.ps1'
+  workflow_dispatch:
+    inputs:
+      upstream_tag:
+        description: 'Official upstream release tag (e.g. 2.3.0)'
+        type: string
+        required: true
+        default: '2.3.0'
+      publish:
+        description: 'Publish a GitHub Release (off by default)'
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    outputs:
+      name: ${{ steps.package.outputs.name }}
+      version: ${{ steps.package.outputs.version }}
+      sha256: ${{ steps.package.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build from verified upstream release source (not outdated main-branch source)
+        id: package
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UPSTREAM_TAG: ${{ inputs.upstream_tag || '2.3.0' }}
+        run: |
+          ./scripts/Build-Portable.ps1 -UpstreamTag $env:UPSTREAM_TAG -Suffix rampage.1 -OutputDir dist
+
+      - name: Upload ZIP for testing
+        uses: actions/upload-artifact@v4
+        with:
+          name: FFmpegForge-Lite-portable
+          path: dist/*.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Create GitHub Release only when explicitly requested
+        if: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish) || (github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'release: FFmpeg Forge Lite')) }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.package.outputs.version }}
+          ZIP_NAME: ${{ steps.package.outputs.name }}
+          ZIP_SHA256: ${{ steps.package.outputs.sha256 }}
+        run: |
+          $tag = "v$env:VERSION-rampage.1"
+          $notes = @"
+          Built from the official FFmpeg Forge $env:VERSION release **Source/** (the upstream main branch contains older source).
+          Changes: simplified dark title banner (removed decorative background artwork); slim Windows portable package with no bundled FFmpeg/ subdirectory, bin/ directory, ffmpeg.exe, ffprobe.exe or ffplay.exe.
+          Keeps ForgeRTX.exe, dovi_tool.exe and required license files.
+          Select your own FFmpeg binary via **FFmpeg location...**; place ffprobe.exe next to it to enable full media probing.
+          GitHub Actions build verified the EXE version and ZIP contents.
+          ZIP SHA256: `$env:ZIP_SHA256`
+          Upstream source: https://github.com/Aaronstanley78/FFmpeg-Forge-Desktop/releases/tag/$env:VERSION
+          "@
+          $notes | Out-File -FilePath release-notes.md -Encoding utf8
+          gh release view $tag -R "$env:GITHUB_REPOSITORY" --json tagName 2>$null
+          if ($LASTEXITCODE -eq 0) { throw "Release tag $tag already exists; do not overwrite it." }
+          gh release create $tag "dist/$env:ZIP_NAME" -R "$env:GITHUB_REPOSITORY" --target "$env:GITHUB_SHA" --title "FFmpeg Forge $env:VERSION - Rampage Lite" --notes-file release-notes.md --latest=false
+          if ($LASTEXITCODE -ne 0) { throw 'Release creation failed' }
