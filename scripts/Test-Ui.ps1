@@ -140,6 +140,30 @@ try {
     $scaleForm.Show()
     [System.Windows.Forms.Application]::DoEvents()
     if (-not $scaleForm.Visible) { throw 'Scale tool window cannot be reopened' }
+    # Category-aware migration: video/image resolution controls belong
+    # solely to Scale, and still drive the same Snapshot() output settings.
+    $mediaType = $asm.GetType('FFmpegForge.MediaKind', $true)
+    $setCategory = $mainType.GetMethod('SetCategory', $flags)
+    $snapshot = $mainType.GetMethod('Snapshot', $flags)
+    $imageKind = [Enum]::Parse($mediaType, 'Image')
+    $videoKind = [Enum]::Parse($mediaType, 'Video')
+    $audioKind = [Enum]::Parse($mediaType, 'Audio')
+    [void]$setCategory.Invoke($form, [object[]]@($imageKind))
+    $imageSize = $mainType.GetField('secResImage', $flags).GetValue($form)
+    $videoSize = $mainType.GetField('secResVideo', $flags).GetValue($form)
+    if (-not $imageSize.Visible -or $videoSize.Visible) { throw 'Image Scale resolution card visibility broken' }
+    if ($hdrCheck.Visible) { throw 'Video-only RTX TrueHDR shown in Image Scale mode' }
+    if (-not $vsrCheck.Visible) { throw 'RTX VSR incorrectly hidden for Image output' }
+    $snap = $snapshot.Invoke($form, $null)
+    if (-not $snap.RtxVsr -or $snap.RtxHdr -or $snap.Dlss) { throw 'Image RTX settings no longer reach ConvSettings snapshot' }
+    [void]$setCategory.Invoke($form, [object[]]@($audioKind))
+    $openScale = $mainType.GetField('btnOpenScale', $flags).GetValue($form)
+    if ($openScale.Enabled) { throw 'Scale launch not disabled in Audio mode' }
+    [void]$setCategory.Invoke($form, [object[]]@($videoKind))
+    if (-not $videoSize.Visible -or $imageSize.Visible -or -not $openScale.Enabled) {
+        throw 'Video Scale controls did not return after changing category'
+    }
+    Write-Host 'PASS: Video/Image/Audio Scale card visibility and RTX image Snapshot'
     $scaleForm.Hide()
     Write-Host 'PASS: custom AI gated expansion and Scale window reopen'
     Write-Host 'PASS: main UI created and all toggle paths completed without exception'
