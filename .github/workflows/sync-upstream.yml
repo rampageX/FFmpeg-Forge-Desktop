@@ -1,32 +1,33 @@
-name: Sync upstream main
+name: Review upstream updates (safe, read-only)
 
 on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  sync:
+  review:
     runs-on: ubuntu-latest
+    timeout-minutes: 8
     steps:
-      - name: Checkout fork (full history)
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          ref: main
           fetch-depth: 0
-      - name: Merge upstream; never force-push
+      - name: Compare upstream main without touching maintained src/
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git remote add upstream https://github.com/Aaronstanley78/FFmpeg-Forge-Desktop.git
           git fetch upstream main
-          if git merge-base --is-ancestor upstream/main HEAD; then
-            echo "Already up to date with upstream/main"
-            exit 0
-          fi
-          echo "Merging upstream/main into fork main. Conflicts will stop this job."
-          git merge --no-edit upstream/main
-          git push origin HEAD:main
+          echo '### Upstream GitHub main' >> "$GITHUB_STEP_SUMMARY"
+          echo 'The upstream GitHub C# source may be OLDER than the official Release Source. This workflow never merges old files into src/.' >> "$GITHUB_STEP_SUMMARY"
+          echo '### Upstream latest commits' >> "$GITHUB_STEP_SUMMARY"
+          git log -7 --pretty=format:'- %h %s (%cs)' upstream/main >> "$GITHUB_STEP_SUMMARY"
+          echo '' >> "$GITHUB_STEP_SUMMARY"
+          echo '### Latest official upstream Release' >> "$GITHUB_STEP_SUMMARY"
+          gh release view -R Aaronstanley78/FFmpeg-Forge-Desktop --json tagName,publishedAt --jq '"- Version: \(.tagName); published \(.publishedAt)"' >> "$GITHUB_STEP_SUMMARY"
+          echo '' >> "$GITHUB_STEP_SUMMARY"
+          echo 'For new releases, compare the actual Source/ embedded in their RAR to this fork src/ in a separate branch; merge changes selectively and re-run Windows UI regression tests.' >> "$GITHUB_STEP_SUMMARY"
