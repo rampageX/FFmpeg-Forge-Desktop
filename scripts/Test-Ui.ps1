@@ -99,10 +99,13 @@ $argsToRip[1] = $emptySettings
 $rip = $ctor.Invoke($argsToRip)
 try {
     [void]$rip.Handle
+    $root = $rip.Controls[0]
+    # Hosted Windows CI uses a small virtual screen. Form.Size gets silently
+    # clamped (~1028px), so size the internal layout directly to exercise
+    # the actual 980 / 1180 / 1525px window widths.
+    $root.Dock = [System.Windows.Forms.DockStyle]::None
     foreach ($screen in @(@(980, 720), @(1180, 860), @(1525, 953))) {
-        $rip.Size = New-Object System.Drawing.Size($screen[0], $screen[1])
-        $rip.PerformLayout()
-        $root = $rip.Controls[0]
+        $root.Size = New-Object System.Drawing.Size(($screen[0] - 16), ($screen[1] - 39))
         $root.PerformLayout()
         foreach ($c in $root.Controls) { $c.PerformLayout() }
         $quality = $ripType.GetField('cbQuality', $flags).GetValue($rip)
@@ -111,9 +114,15 @@ try {
         $ripButton = $ripType.GetField('btnRip', $flags).GetValue($rip)
         $progress = $ripType.GetField('bar', $flags).GetValue($rip)
         $option = $quality.Parent
-        Write-Host ("RIP {0}x{1}: client={2}, root={3}, opt={4}, quality.Right={5}, subtitles.Right={6}, RIP.Right={7}" -f
-            $screen[0], $screen[1], $rip.ClientSize, $root.Bounds, $option.Bounds,
-            $quality.Right, $subtitles.Right, $ripButton.Parent.Right)
+        $video = $ripType.GetField('cbVideo', $flags).GetValue($rip)
+        Write-Host ("RIP synthetic viewport {0}x{1}: root={2}, opt={3}, Format.Width={4}, Video.Width={5}, Quality.Width={6}, RIP.Right={7}" -f
+            $screen[0], $screen[1], $root.Bounds, $option.Bounds,
+            $format.Width, $video.Width, $quality.Width, $ripButton.Parent.Right)
+        foreach ($combo in @($format, $video, $quality, $subtitles)) {
+            if ($combo.MaximumSize.Width -gt 0 -and $combo.Width -gt $combo.MaximumSize.Width + 2) {
+                throw ("RIP field exceeds compact maximum width: " + $combo.Text + " / " + $combo.Width)
+            }
+        }
         if ($option.Right -gt $root.ClientSize.Width + 2) {
             throw "RIP options extend beyond root at $($screen[0])x$($screen[1])"
         }
