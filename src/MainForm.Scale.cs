@@ -265,7 +265,15 @@ namespace FFmpegForge
                 if (panel == null || panel.IsDisposed || !panel.Visible || !panel.IsHandleCreated) continue;
                 if (panel.FindForm() != owner) continue;
                 if (!panel.RectangleToScreen(panel.ClientRectangle).Contains(mouse)) continue;
+                // A prior CLICK that gave a genuine interactive control focus
+                // must keep native wheel behavior while hovered. Mere pointer
+                // movement never receives focus and therefore scrolls the card.
                 if (AnyDropdownOpen(panel)) return false;
+                if (hoveredControl != null && hoveredControl.ContainsFocus &&
+                    (hoveredControl is ComboBox || hoveredControl is TrackBar ||
+                     hoveredControl is NumericUpDown || hoveredControl is ListBox ||
+                     hoveredControl is ListView || hoveredControl is TextBoxBase))
+                    return false;
                 var bar = panel.VerticalScroll;
                 int limit = Math.Max(0, bar.Maximum - bar.LargeChange + 1);
                 if (limit == 0) return false;
