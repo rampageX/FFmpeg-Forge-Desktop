@@ -51,8 +51,11 @@ This is an implementation limitation, not a general hardware claim.
 
 No card gives itself focus on `MouseEnter`. A message filter dispatches
 WinForms wheel input to the visible settings viewport **under the mouse
-pointer**, without calling `Focus()` on any section or child. ComboBox
-drop-down menus retain native wheel behavior when opened. A pointer in the
+pointer**, without calling `Focus()` on any section or child. Controls that
+already received focus through an actual click (combo boxes, list boxes,
+sliders, numeric inputs and text editors) retain native wheel behavior while
+the pointer remains on them. Open ComboBox drop-down menus also retain their
+native wheel behavior. A pointer in the
 main file list/log does not accidentally scroll a settings window hidden
 beneath another window.
 
