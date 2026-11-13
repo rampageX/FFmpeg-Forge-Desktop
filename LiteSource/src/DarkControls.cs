@@ -152,6 +152,8 @@ namespace FFmpegForge
         [DllImport("gdi32.dll")] private static extern bool DeleteObject(IntPtr brush);
         [DllImport("gdi32.dll")] private static extern int SetTextColor(IntPtr dc, int color);
         [DllImport("gdi32.dll")] private static extern int SetBkColor(IntPtr dc, int color);
+        [DllImport("user32.dll")] private static extern IntPtr GetWindowDC(IntPtr hwnd);
+        [DllImport("user32.dll")] private static extern int ReleaseDC(IntPtr hwnd, IntPtr dc);
         private IntPtr disabledBrush;
         private bool hovered, repairQueued;
 
@@ -243,38 +245,73 @@ namespace FFmpegForge
             }
             base.WndProc(ref m);
             if (msg == 0x0047 || msg == 0x0005) QueueResizeRepair(); // WINDOWPOSCHANGED, SIZE
-            if (msg == 0x000F || msg == 0x0085 || msg == 0x0014 || msg == 0x000A)
-                PaintChrome(); // PAINT, NCPAINT, ERASEBKGND, ENABLE
+            // Never overdraw on WM_ERASEBKGND: native ComboBox painting has not
+            // finished there. Paint once after WM_PAINT / WM_NCPAINT instead.
+            if (msg == 0x000F || msg == 0x0085 || msg == 0x000A)
+                PaintChrome(); // PAINT, NCPAINT, ENABLE
         }
 
-        // Do not redraw the dropdown item text or popup; paint only the native
-        // arrow region, its separator and the one-pixel border after native paint.
+        // Paint the non-client edge with a WINDOW DC. Graphics.FromHwnd only
+        // covers the client; native WinForms left a bright 1px right-hand edge.
+        // Limit all repaints to the arrow and its unused inner rim: text, caret,
+        // selection and native popup remain owned by WinForms.
         private void PaintChrome()
         {
-            if (!IsHandleCreated || Disposing || IsDisposed || DropDownStyle == ComboBoxStyle.Simple ||
-                Width < 10 || Height < 8) return;
+            if (!IsHandleCreated || Disposing || IsDisposed ||
+                DropDownStyle == ComboBoxStyle.Simple || Width < 10 || Height < 8) return;
             var info = new ComboInfo { Size = Marshal.SizeOf(typeof(ComboInfo)) };
             bool known = GetComboBoxInfo(Handle, ref info);
             int left = known ? info.Button.Left : Width - SystemInformation.VerticalScrollBarWidth;
             int right = known ? info.Button.Right : Width - 1;
-            left = Math.Max(1, Math.Min(Width - 2, left));
+            left = Math.Max(2, Math.Min(Width - 3, left));
             right = Math.Max(left + 1, Math.Min(Width - 1, right));
-            using (var g = Graphics.FromHwnd(Handle))
+
+            IntPtr dc = GetWindowDC(Handle);
+            if (dc == IntPtr.Zero) return;
+            try
             {
-                var arrow = new Rectangle(left, 1, Math.Max(1, right - left), Math.Max(1, Height - 2));
-                using (var b = new SolidBrush(Theme.Card))
+                using (Graphics g = Graphics.FromHdc(dc))
+                using (Brush dark = new SolidBrush(Theme.Card))
                 {
-                    g.FillRectangle(b, arrow);
-                    g.FillRectangle(b, Math.Max(1, left - 2), 2, 2, Math.Max(1, Height - 4));
+                    // Native disabled combos can paint a light 1px inset around
+                    // the value rectangle. Clear only pixels OUTSIDE rcItem.
+                    int itemLeft = known ? info.Item.Left : 2;
+                    int itemTop = known ? info.Item.Top : 2;
+                    int itemRight = known ? info.Item.Right : left;
+                    int itemBottom = known ? info.Item.Bottom : Height - 2;
+                    itemLeft = Math.Max(1, Math.Min(Width - 2, itemLeft));
+                    itemTop = Math.Max(1, Math.Min(Height - 2, itemTop));
+                    itemRight = Math.Max(itemLeft, Math.Min(left, itemRight));
+                    itemBottom = Math.Max(itemTop, Math.Min(Height - 1, itemBottom));
+
+                    g.FillRectangle(dark, 1, 1, Width - 2, itemTop - 1);
+                    g.FillRectangle(dark, 1, itemBottom, Width - 2, Height - 1 - itemBottom);
+                    g.FillRectangle(dark, 1, itemTop, itemLeft - 1, itemBottom - itemTop);
+                    g.FillRectangle(dark, itemRight, itemTop,
+                        Math.Max(0, Width - 1 - itemRight), itemBottom - itemTop);
+
+                    // Blank the native arrow/its separator, including the far
+                    // right 1px NC seam that used to stay white.
+                    g.FillRectangle(dark, left, 1, Width - left - 1, Height - 2);
+                    g.FillRectangle(dark, Math.Max(1, left - 2), 2, 2, Height - 4);
+                    Color edge = !Enabled ? Theme.Border :
+                        Focused || DroppedDown ? Theme.Blue :
+                        hovered ? Theme.Muted : Theme.Border;
+                    using (Pen inner = new Pen(Theme.Card))
+                        g.DrawRectangle(inner, 1, 1, Width - 3, Height - 3);
+                    using (Pen border = new Pen(edge))
+                        g.DrawRectangle(border, 0, 0, Width - 1, Height - 1);
+                    int cx = (left + right) / 2, cy = Height / 2;
+                    using (Pen arrow = new Pen(Enabled ? Theme.Text : Theme.Muted,
+                        Math.Max(1f, Theme.Scale)))
+                        g.DrawLines(arrow, new[] {
+                            new Point(cx - Theme.S(3), cy - Theme.S(1)),
+                            new Point(cx, cy + Theme.S(2)),
+                            new Point(cx + Theme.S(3), cy - Theme.S(1))
+                        });
                 }
-                Color edge = !Enabled ? Theme.Border : Focused || DroppedDown ? Theme.Blue : hovered ? Theme.Muted : Theme.Border;
-                using (var p = new Pen(edge))
-                    g.DrawRectangle(p, 0, 0, Width - 1, Height - 1);
-                int cx = (left + right) / 2, cy = Height / 2;
-                using (var p = new Pen(Enabled ? Theme.Text : Theme.Muted, Math.Max(1f, Theme.Scale)))
-                    g.DrawLines(p, new[] { new Point(cx - Theme.S(3), cy - Theme.S(1)),
-                        new Point(cx, cy + Theme.S(2)), new Point(cx + Theme.S(3), cy - Theme.S(1)) });
             }
+            finally { ReleaseDC(Handle, dc); }
         }
 
         protected override void OnHandleDestroyed(EventArgs e)
