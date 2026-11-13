@@ -144,6 +144,7 @@ namespace FFmpegForge
 
             LoadSettings();
             BuildUI();
+            DarkNativeScroll.Attach(this);  // attach once; theme handles on creation, never per paint
             ApplySettings();
 
             DragEnter += OnDragEnter; DragDrop += OnDragDrop; DragLeave += (s, e) => { dropHint.Highlight = false; dropHint.Invalidate(); };
@@ -229,7 +230,7 @@ namespace FFmpegForge
             listHost.BringToFront();
 
             // ---------- options panel ----------
-            var stack = new TableLayoutPanel { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, ColumnCount = 1, BackColor = Theme.Bg };
+            var stack = new SmoothSettingsTable { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, ColumnCount = 1, BackColor = Theme.Bg };
             stack.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
             // Format
@@ -832,7 +833,7 @@ namespace FFmpegForge
             cbRtxImg.SelectedIndexChanged += (s2, e2) => rtxInfo();
 
             // ---------- options column (1.1.5 layout: every section stacked on the right) ----------
-            var right = new Panel { Dock = DockStyle.Right, Width = Theme.S(490), BackColor = Theme.Bg, AutoScroll = true, Padding = new Padding(Theme.S(4), Theme.S(16), Theme.S(18), Theme.S(16)) };
+            var right = new SmoothSettingsPanel { Dock = DockStyle.Right, Width = Theme.S(490), BackColor = Theme.Bg, AutoScroll = true, Padding = new Padding(Theme.S(4), Theme.S(16), Theme.S(18), Theme.S(16)) };
             stack.Dock = DockStyle.Top;
             foreach (Control c in stack.Controls) { c.Dock = DockStyle.Fill; if (c is CardTable) c.Margin = new Padding(0, 0, 0, Theme.S(14)); }
             right.Controls.Add(stack);
@@ -1032,7 +1033,7 @@ namespace FFmpegForge
 
         ComboBox Combo(params object[] items)
         {
-            var c = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Theme.Card, ForeColor = Theme.Text, Font = fUI, Dock = DockStyle.Fill, Margin = new Padding(0, Theme.S(3), 0, Theme.S(3)), IntegralHeight = false, MaxDropDownItems = 18 };
+            var c = new DarkCombo { DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Theme.Card, ForeColor = Theme.Text, Font = fUI, Dock = DockStyle.Fill, Margin = new Padding(0, Theme.S(3), 0, Theme.S(3)), IntegralHeight = false, MaxDropDownItems = 18 };
             c.Items.AddRange(items);
             if (c.Items.Count > 0) c.SelectedIndex = 0;
             return c;
@@ -1060,7 +1061,7 @@ namespace FFmpegForge
 
         TableLayoutPanel Section(string title)
         {
-            var t = new CardTable { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, ColumnCount = 2, BackColor = Theme.Panel, Margin = new Padding(0, 0, 0, Theme.S(16)), Padding = new Padding(Theme.S(18), Theme.S(14), Theme.S(18), Theme.S(16)) };
+            var t = new SmoothCardTable { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, ColumnCount = 2, BackColor = Theme.Panel, Margin = new Padding(0, 0, 0, Theme.S(16)), Padding = new Padding(Theme.S(18), Theme.S(14), Theme.S(18), Theme.S(16)) };
             t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 44));
             t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 56));
             var l = new SectionHeader(title.Replace("  (", "  (").Trim(), SectionHeader.IconFor(title)) { BackColor = Theme.Panel, Margin = new Padding(0, 0, 0, Theme.S(6)) };
@@ -1599,6 +1600,8 @@ namespace FFmpegForge
 
         void UpdateDnRows()
         {
+            using (UiLayoutBatch.Begin(secDn))
+            {
             bool on = chkDn.Checked;
             string key = DnModelKey();
             lblDnInfo.Visible = on;
@@ -1609,6 +1612,7 @@ namespace FFmpegForge
             bool ok = AiDenoise.ReadyFor(probe);
             lblDnInfo.Text = AiDenoise.StatusFor(key);
             lblDnInfo.ForeColor = ok ? Theme.Success : Theme.Accent1;
+            }
         }
 
         void InstallDnModelSupport()
@@ -1650,6 +1654,8 @@ namespace FFmpegForge
 
         void UpdateOptiRows()
         {
+            using (UiLayoutBatch.Begin(secOpti))
+            {
             foreach (var c in optiRows) if (c != null) c.Visible = chkOpti.Checked;
             bool lp = Scaling.HasLibplacebo;
             lblOptiInfo.Text = (FilterCatalog.Loaded && !lp)
@@ -1657,10 +1663,13 @@ namespace FFmpegForge
                 : "Runs on: GPU (libplacebo / Vulkan)  ·  applied after the Scale type" +
                   "\nPort of OptiScaler's open-source shaders (GPL-3.0). DLSS, XeSS, FSR 2+ and MAS need a game's motion vectors and depth, so they cannot run on video files.";
             lblOptiInfo.ForeColor = lblOptiInfo.Text.StartsWith("⚠") ? Theme.Accent1 : Theme.Muted;
+            }
         }
 
         void UpdateScaleRows()
         {
+            using (UiLayoutBatch.Begin(secScale))
+            {
             foreach (var c in scaleRows) if (c != null) c.Visible = chkScale.Checked;
             var t = cbScaleType.SelectedItem as Scaling.ScaleType;
             if (t == null) return;
@@ -1675,21 +1684,28 @@ namespace FFmpegForge
             if (FilterCatalog.Loaded && !lp && t.GpuOnly) text = "⚠ Your FFmpeg build has no libplacebo (Vulkan) filter: this type needs a \"full\" FFmpeg build.";
             lblScaleInfo.Text = text + "\nLS1 (Lossless Scaling's own algorithm) is proprietary and cannot be included.";
             lblScaleInfo.ForeColor = text.StartsWith("⚠") ? Theme.Accent1 : Theme.Muted;
+            }
         }
 
         void UpdateUpmixRow()
         {
+            using (UiLayoutBatch.Begin(secAudio))
+            {
             var c = cbCh.SelectedItem as Choice;
             var l = c != null ? ChannelLayouts.Get(c.Key) : null;
             bool on = l != null && new[] { "5.1", "7.1", "5.1.2", "5.1.4", "7.1.2", "7.1.4", "7.1.6", "9.1.4", "9.1.6", "binaural" }.Contains(l.Key);
             cbUpmix.Visible = lblUpmix.Visible = on;
+            }
         }
 
         void UpdateRtxRows()
         {
+            using (UiLayoutBatch.Begin(secRtx))
+            {
             foreach (var c in vsrRows) if (c != null) c.Visible = chkVsr.Checked;
             foreach (var c in hdrRows) if (c != null) c.Visible = chkHdr.Checked;
             foreach (var c in dlssRows) if (c != null) c.Visible = chkDlss.Checked;
+            }
         }
 
         void UpdateRtxStatus()
@@ -2886,6 +2902,8 @@ namespace FFmpegForge
 
         void UpdateCaiRows()
         {
+            using (UiLayoutBatch.Begin(secCai))
+            {
             if (secCai == null) return;
             string m = cbCaiModel.SelectedItem as string;
             string miss = m == null ? null : CustomAi.Missing(m);
@@ -2899,10 +2917,13 @@ namespace FFmpegForge
                 : m + "  ·  " + CustomAi.Kind(m) + "\nRuns on every frame before the other effects, then your export settings apply (format, codec, audio, filters). " +
                   (cbCaiSize.SelectedIndex == 1 ? "The result is brought back to the source size." : "Upscaling models enlarge the picture (×2, ×4…), detected automatically.") +
                   "\nInputs are RGB 0..1 (NCHW or NHWC for ONNX). Models with a fixed input size are tiled automatically.";
+            }
         }
 
         void UpdateDeintRows()
         {
+            using (UiLayoutBatch.Begin(secVideo))
+            {
             if (cbDeint == null) return;
             bool on = cbDeint.SelectedIndex > 0;
             cbDeintOrder.Visible = lblDeintOrder.Visible = on;
@@ -2916,10 +2937,13 @@ namespace FFmpegForge
                        : "\nQTGMC is not installed yet: FFmpeg's bwdif deinterlacer is used until you install it (one time, about 150 MB).";
             lblDeintInfo.Text = t;
             lblDeintInfo.ForeColor = ready ? Theme.Muted : Theme.Accent1;
+            }
         }
 
         void UpdateHdrRows()
         {
+            using (UiLayoutBatch.Begin(secVideo))
+            {
             if (cbHdr == null || cbHdrImg == null) return;
             int m = cbHdr.SelectedIndex;
             cbHdrPeak.Visible = lblHdrPeak.Visible = lblHdrInfo.Visible = m > 0;
@@ -2935,6 +2959,7 @@ namespace FFmpegForge
             int mi = cbHdrImg.SelectedIndex;
             cbHdrPeakImg.Visible = lblHdrPeakImg.Visible = lblHdrImgInfo.Visible = mi > 0;
             if (mi > 0) lblHdrImgInfo.Text = "Choose PNG (16-bit, cICP HDR tag) or AVIF (10-bit) as the output format.";
+            }
         }
 
         void UpdateTracksInfo()
@@ -3033,6 +3058,8 @@ namespace FFmpegForge
 
         void UpdateVisionRows()
         {
+            using (UiLayoutBatch.Begin(secVision))
+            {
             if (secVision == null || cbVisionModel == null || cbVisionMem == null || lblVisionInfo == null) return;
             bool on = chkVision.Checked;
             foreach (var c in visionRows) if (c != null) c.Visible = on;
@@ -3079,6 +3106,7 @@ namespace FFmpegForge
             lblVisionInfo.Text = "VisionNext ×" + vsc + (vsc > 2 && !builtin ? "  ·  ⚠ ×" + vsc + " needs the Built-in engine" : vsc > 2 ? "  ·  ×" + vsc + ": about " + (vsc * vsc / 4.0).ToString("0.#", CultureInfo.InvariantCulture) + "× slower than ×2" : "") + "  ·  tile " + cbVisionTile.Text +
                                  (img ? "" : builtin ? "\nVideos are streamed straight from the decoder to the final encoder (no picture files, one single encode)." : "\nVideos are encoded directly: decoding, Visual Enhancer upscale and the final encode run at the same time (one single encode, no frame sequence saved).") +
                                  "\nScale / OptiScaler, SeedVR2 and RTX options must be off. " + (builtin ? (chkVisionCpu.Checked ? "CPU mode: works without an NVIDIA card but is very slow." : "GPU mode: NVIDIA GPU (CUDA), 24 GB VRAM recommended.") : "Needs a DirectX 12 GPU.");
+            }
         }
 
         int VisionTile()
@@ -3252,6 +3280,8 @@ namespace FFmpegForge
 
         void UpdateSeedRows()
         {
+            using (UiLayoutBatch.Begin(secSeed))
+            {
             if (secSeed == null) return;
             bool on = chkSeed.Checked;
             bool img = category == MediaKind.Image;
@@ -3266,6 +3296,7 @@ namespace FFmpegForge
             lblSeedInfo.Text = (m == null ? "" : (have ? "✓ " + SeedEngine.Short(m.File) + " is downloaded." : "↓ " + SeedEngine.Short(m.File) + " will download on the first conversion.")) +
                                "\nRuns after the Denoiser and filters, before encoding. Scale / OptiScaler and RTX options must be off." +
                                " Needs an NVIDIA GPU (CUDA); slow — minutes per minute of video with 7B.";
+            }
         }
 
         SeedSettings SeedSnapshot(MediaKind k)
