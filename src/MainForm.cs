@@ -131,7 +131,7 @@ namespace FFmpegForge
             fMono = new Font("Consolas", 9f);
             tips = new ToolTip { AutoPopDelay = 15000 };
 
-            Text = "FFmpeg Forge 2.3.2 — Universal Video • Audio • Image converter" + (AppPaths.Portable ? "  (portable)" : "");
+            Text = "FFmpeg Forge 2.3.3 — Universal Video • Audio • Image converter" + (AppPaths.Portable ? "  (portable)" : "");
             AutoScaleMode = AutoScaleMode.None;
             BackColor = Theme.Bg;
             ForeColor = Theme.Text;
