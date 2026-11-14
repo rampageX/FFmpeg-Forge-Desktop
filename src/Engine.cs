@@ -27,7 +27,7 @@ namespace FFmpegForge
         public int AudioChannels;            // first audio stream
         public string AudioCodec, AudioLayout;   // first audio stream (codec name, FFmpeg channel layout)
         // compression assistant (ffprobe, same call): bitrates in bits/s, 0 = unknown
-        public string VideoCodec, VideoProfile, PixFmt, ColorTransfer;
+        public string VideoCodec, VideoProfile, PixFmt, ColorTransfer, ColorPrimaries, ColorSpace, ColorRange;
         public double VideoStart = double.NaN, AudioStart = double.NaN;   // ffprobe start_time of the first video / audio stream (s)
         public string FieldOrder;     // ffprobe field_order: progressive, tt, bb, tb, bt, unknown
         public bool IsInterlaced { get { return FieldOrder == "tt" || FieldOrder == "bb" || FieldOrder == "tb" || FieldOrder == "bt"; } }
@@ -894,16 +894,16 @@ namespace FFmpegForge
             if (string.IsNullOrEmpty(FFprobe)) { job.Probed = false; job.HasAudio = job.Kind != MediaKind.Image; job.HasVideo = job.Kind != MediaKind.Audio; return; }
             try
             {
-                string o = RunCapture(FFprobe, "-v error -show_entries format=duration,size,bit_rate:stream=codec_type,codec_name,profile,pix_fmt,color_transfer,field_order,start_time,bit_rate,width,height,r_frame_rate,avg_frame_rate,channels,channel_layout:stream_disposition=attached_pic -of default=nw=1 \"" + job.Path + "\"", 20000);
+                string o = RunCapture(FFprobe, "-v error -show_entries format=duration,size,bit_rate:stream=codec_type,codec_name,profile,pix_fmt,color_transfer,color_primaries,color_space,color_range,field_order,start_time,bit_rate,width,height,r_frame_rate,avg_frame_rate,channels,channel_layout:stream_disposition=attached_pic -of default=nw=1 \"" + job.Path + "\"", 20000);
                 string codec = null, curCodec = null, curType = null, cfr = null, cafr = null; int cchan = 0; string clay = null; int w = 0, h = 0, cw = 0, ch = 0; bool attached = false;
-                string cprof = null, cpix = null, ctrc = null, cfo = null; long cbr = 0; bool inFormat = false; double cst = double.NaN;
+                string cprof = null, cpix = null, ctrc = null, cprim = null, cmatrix = null, crange = null, cfo = null; long cbr = 0; bool inFormat = false; double cst = double.NaN;
                 job.AudioStreams = 0; job.SubtitleStreams = 0; job.AudioBitrate = 0;
                 Action flush = () =>
                 {
-                    if (curType == "video" && !attached) { job.HasVideo = true; if (codec == null) { codec = curCodec; w = cw; h = ch; job.Width = cw; job.Height = ch; SetFps(job, cfr, cafr); job.VideoCodec = curCodec; job.VideoProfile = cprof; job.PixFmt = cpix; job.ColorTransfer = ctrc; job.FieldOrder = cfo; job.VideoBitrate = cbr; job.VideoStart = cst; } }
+                    if (curType == "video" && !attached) { job.HasVideo = true; if (codec == null) { codec = curCodec; w = cw; h = ch; job.Width = cw; job.Height = ch; SetFps(job, cfr, cafr); job.VideoCodec = curCodec; job.VideoProfile = cprof; job.PixFmt = cpix; job.ColorTransfer = ctrc; job.ColorPrimaries = cprim; job.ColorSpace = cmatrix; job.ColorRange = crange; job.FieldOrder = cfo; job.VideoBitrate = cbr; job.VideoStart = cst; } }
                     if (curType == "audio") { if (!job.HasAudio) { job.AudioChannels = cchan; job.AudioCodec = curCodec; job.AudioLayout = clay; job.AudioStart = cst; } job.HasAudio = true; job.AudioStreams++; job.AudioBitrate += cbr; if (codec == null && !job.HasVideo) codec = curCodec; }
                     if (curType == "subtitle") job.SubtitleStreams++;
-                    curType = null; curCodec = null; cw = ch = 0; attached = false; cfr = null; cafr = null; cchan = 0; clay = null; cprof = null; cpix = null; ctrc = null; cfo = null; cbr = 0; cst = double.NaN;
+                    curType = null; curCodec = null; cw = ch = 0; attached = false; cfr = null; cafr = null; cchan = 0; clay = null; cprof = null; cpix = null; ctrc = null; cprim = null; cmatrix = null; crange = null; cfo = null; cbr = 0; cst = double.NaN;
                 };
                 foreach (var raw in o.Split('\n'))
                 {
@@ -925,6 +925,9 @@ namespace FFmpegForge
                         case "profile": cprof = v; break;
                         case "pix_fmt": cpix = v; break;
                         case "color_transfer": ctrc = v; break;
+                        case "color_primaries": cprim = v; break;
+                        case "color_space": cmatrix = v; break;
+                        case "color_range": crange = v; break;
                         case "field_order": cfo = v; break;
                         case "start_time": { double sv; if (!inFormat && double.TryParse(v, NumberStyles.Float, CultureInfo.InvariantCulture, out sv)) cst = sv; } break;
                         case "bit_rate":
