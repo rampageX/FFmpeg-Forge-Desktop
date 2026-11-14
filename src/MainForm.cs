@@ -2323,8 +2323,8 @@ namespace FFmpegForge
                         try { Directory.CreateDirectory(aiStage.TempDir); } catch { }
                         if (pv)
                         {
-                            aiStage.Plan.DecArgs = PreviewFrames.ForDecoder(aiStage.Plan.DecArgs, rs, aiStage.Seconds);
-                            aiStage.Plan.EncArgs = PreviewFrames.ForEncoder(aiStage.Plan.EncArgs, rs, false, true, aiStage.Seconds);
+                            aiStage.Plan.DecArgs = PreviewFrames.ForDecoder(aiStage.Plan.DecArgs, rs, aiStage.Seconds, rjob);
+                            aiStage.Plan.EncArgs = PreviewFrames.ForEncoder(aiStage.Plan.EncArgs, rs, false, true, aiStage.Seconds, rjob);
                         }
                         var dnm = AiDenoise.FindModel(s.DnModel);
                         UI(() => Log("   Denoiser IA (" + (dnm.Key == "scunet" ? "SCUNet" : dnm.Arch + " · " + dnm.Key) + " + temporal stabilisation): " + job.Width + "×" + job.Height, Color.FromArgb(118, 185, 0)));
@@ -2374,8 +2374,8 @@ namespace FFmpegForge
                         try { Directory.CreateDirectory(caiStage.TempDir); } catch { }
                         if (pv)
                         {
-                            caiStage.Plan.DecArgs = PreviewFrames.ForDecoder(caiStage.Plan.DecArgs, rs, caiStage.Seconds);
-                            caiStage.Plan.EncArgs = PreviewFrames.ForEncoder(caiStage.Plan.EncArgs, rs, false, true, caiStage.Seconds);
+                            caiStage.Plan.DecArgs = PreviewFrames.ForDecoder(caiStage.Plan.DecArgs, rs, caiStage.Seconds, rjob);
+                            caiStage.Plan.EncArgs = PreviewFrames.ForEncoder(caiStage.Plan.EncArgs, rs, false, true, caiStage.Seconds, rjob);
                         }
                         var cp = caiStage.Plan;
                         UI(() => Log("   Python / ONNX AI: " + s.CaiModel + "  ·  " + cp.W + "×" + cp.H + " → " + cp.OW + "×" + cp.OH + (s.CaiGpu ? "  ·  GPU" : "  ·  CPU"), Color.FromArgb(118, 185, 0)));
@@ -2454,8 +2454,8 @@ namespace FFmpegForge
                             // built-in engine: streamed decoder -> VOSR 2.0 -> final encoder (no picture files, one encode)
                             if (pv)
                             {
-                                vp.Driver.DecArgs = PreviewFrames.ForDecoder(vp.Driver.DecArgs, s, vp.Expected);
-                                vp.Driver.EncArgs = PreviewFrames.ForEncoder(vp.Driver.EncArgs, s, false, false, vp.Expected);
+                                vp.Driver.DecArgs = PreviewFrames.ForDecoder(vp.Driver.DecArgs, s, vp.Expected, rjob);
+                                vp.Driver.EncArgs = PreviewFrames.ForEncoder(vp.Driver.EncArgs, s, false, false, vp.Expected, rjob);
                             }
                             UI(() => Log("   Upscale " + (s.Vision.Razor ? "RazorNext (built-in RelayVSR, " : "VisionNext (built-in VOSR 2.0, ") + (s.Vision.UseGpu ? "GPU" : "CPU") + ", streamed) ×" + s.Vision.Scale + (s.Vision.Razor ? "" : " · tile " + s.Vision.Tile) + "  ·  " + vp.InW + "×" + vp.InH + " → " + vp.OutW + "×" + vp.OutH, Color.FromArgb(118, 185, 0)));
                             try { string od = Path.GetDirectoryName(outPath); if (!string.IsNullOrEmpty(od)) Directory.CreateDirectory(od); } catch { }
@@ -2465,7 +2465,7 @@ namespace FFmpegForge
                         {
                             if (pv)
                             {
-                                vp.EncArgs = PreviewFrames.ForEncoder(vp.EncArgs, s, srcHasPicture && job.Kind == MediaKind.Video, false, vp.Expected);
+                                vp.EncArgs = PreviewFrames.ForEncoder(vp.EncArgs, s, srcHasPicture && job.Kind == MediaKind.Video, false, vp.Expected, rjob);
                                 if (vp.Video && !vp.Streamed) { var vin = vp.VeIn; var vout = vp.VeOut; UI(() => { if (previewWin != null && !previewWin.IsDisposed) previewWin.SetFolders(vin, vout); }); }
                             }
                             UI(() => Log("   Upscale " + s.Vision.Name + " ×" + s.Vision.Scale + (s.Vision.Razor ? " · GPU memory " + s.Vision.MemBudget : " · tile " + s.Vision.Tile) + "  ·  " + vp.InW + "×" + vp.InH + " → " + vp.OutW + "×" + vp.OutH, Color.FromArgb(118, 185, 0)));
@@ -2476,7 +2476,7 @@ namespace FFmpegForge
                     {
                         string serr;
                         var sp = SeedEngine.Build(rjob, rs, outPath, out serr);
-                        if (pv) sp.EncArgs = PreviewFrames.ForEncoder(sp.EncArgs, s, job.Kind == MediaKind.Video, false, sp.Expected);
+                        if (pv) sp.EncArgs = PreviewFrames.ForEncoder(sp.EncArgs, s, job.Kind == MediaKind.Video, false, sp.Expected, rjob);
                         UI(() => Log("   SeedVR2: " + SeedEngine.Short(sp.Script == null ? "" : s.Seed.Model) + "  ·  " + sp.InW + "×" + sp.InH + " → short side " + sp.OutShort, Color.FromArgb(118, 185, 0)));
                         code = SeedEngine.Run(sp,
                             p =>
@@ -2494,7 +2494,7 @@ namespace FFmpegForge
                     else if (plan != null)
                     {
                         var pl = plan;
-                        if (pv) plan.EncArgs = PreviewFrames.ForEncoder(plan.EncArgs, s, true, true, plan.Expected);
+                        if (pv) plan.EncArgs = PreviewFrames.ForEncoder(plan.EncArgs, s, true, true, plan.Expected, rjob);
                         UI(() => Log("   RTX driver engine: " + pl.W + "×" + pl.H + " → " + pl.OW + "×" + pl.OH + (s.RtxHdr ? "  ·  HDR10" : ""), Theme.Muted));
                         code = Rtx.RunDriver(plan,
                             p =>
@@ -2512,7 +2512,7 @@ namespace FFmpegForge
                     else
                     {
                         bool withPv = pv && exe == Runner.FFmpeg;
-                        string runArgs = withPv ? PreviewFrames.ForCommand(args, s, expected) : args;
+                        string runArgs = withPv ? PreviewFrames.ForCommand(args, s, expected, rjob) : args;
                         Action<double> prog = p =>
                         {
                             job.Progress = pBase + pScale * p;
