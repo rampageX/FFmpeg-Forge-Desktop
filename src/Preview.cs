@@ -84,9 +84,9 @@ namespace FFmpegForge
         internal static bool AlreadySdr(string chain)
         {
             if (string.IsNullOrEmpty(chain)) return false;
-            return Regex.IsMatch(chain, @"(?:^|,)\\s*tonemap\\s*=", RegexOptions.IgnoreCase) ||
-                   Regex.IsMatch(chain, @"\\btonemapping\\s*=", RegexOptions.IgnoreCase) ||
-                   Regex.IsMatch(chain, @"\\bcolor_trc\\s*=\\s*(?:bt709|iec61966-2-1)\\b", RegexOptions.IgnoreCase);
+            return Regex.IsMatch(chain, @"(?:^|,)\s*tonemap\s*=", RegexOptions.IgnoreCase) ||
+                   Regex.IsMatch(chain, @"\btonemapping\s*=", RegexOptions.IgnoreCase) ||
+                   Regex.IsMatch(chain, @"\bcolor_trc\s*=\s*(?:bt709|iec61966-2-1)\b", RegexOptions.IgnoreCase);
         }
 
         static string Output(string map, string chain, string path, double seconds, string display)
