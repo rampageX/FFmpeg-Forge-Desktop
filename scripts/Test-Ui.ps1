@@ -16,6 +16,51 @@ $comboType = $asm.GetType('FFmpegForge.DarkCombo', $true)
 $flags = [System.Reflection.BindingFlags]'Instance,NonPublic,Public'
 [System.Windows.Forms.Application]::EnableVisualStyles()
 [System.Windows.Forms.Application]::SetCompatibleTextRenderingDefault($false)
+# HDR preview must be mapped to SDR only in the JPEG comparison branches.
+# These tests inspect the assembled FFmpeg commands; they cannot replace GPU/monitor checks.
+$pvType = $asm.GetType('FFmpegForge.PreviewFrames', $true)
+$jobType = $asm.GetType('FFmpegForge.Job', $true)
+$settingsType = $asm.GetType('FFmpegForge.ConvSettings', $true)
+$pvType.GetField('Dir').SetValue($null, $root)
+$hdrJob = [Activator]::CreateInstance($jobType)
+$hdrJob.ColorTransfer = 'smpte2084'
+$hdrJob.ColorPrimaries = 'bt2020'
+$hdrJob.ColorSpace = 'bt2020nc'
+$hdrJob.ColorRange = 'tv'
+$sdJob = [Activator]::CreateInstance($jobType)
+$settings = [Activator]::CreateInstance($settingsType)
+$checkCount = {
+    param([string]$cmd, [string]$part, [int]$want)
+    $got = ([regex]::Matches($cmd, [regex]::Escape($part))).Count
+    if ($got -ne $want) { throw "HDR preview expected $want matches of [$part], got $got" }
+}
+$raw = '-hide_banner -i "input.mkv" -vf "eq=contrast=1.1" -c:v libx265 "output.mkv"'
+$hdrCmd = $pvType.GetMethod('ForCommand').Invoke($null, @($raw, $settings, [double]9, $hdrJob))
+& $checkCount $hdrCmd 'tonemap=tonemap=hable:desat=2' 2
+& $checkCount $hdrCmd 'tin=smpte2084' 2
+& $checkCount $hdrCmd 'format=rgb24' 2
+$plain = $pvType.GetMethod('ForCommand').Invoke($null, @($raw, $settings, [double]9, $sdJob))
+& $checkCount $plain 'tonemap=tonemap=hable' 0
+$withSdr = $pvType.GetMethod('ForCommand').Invoke($null,
+    @('-i "input.mkv" -vf "zscale=t=linear,tonemap=tonemap=hable,zscale=t=bt709" out.mkv', $settings, [double]9, $hdrJob))
+& $checkCount $withSdr 'tonemap=tonemap=hable:desat=2' 1
+$hlg = [Activator]::CreateInstance($jobType)
+$hlg.ColorTransfer = 'arib-std-b67'
+$hlg.ColorPrimaries = 'bt2020'
+$hlg.ColorSpace = 'bt2020nc'
+$hlg.ColorRange = 'tv'
+$hlgCmd = $pvType.GetMethod('ForDecoder').Invoke($null, @('-i "hlg.mkv"', $settings, [double]9, $hlg))
+& $checkCount $hlgCmd 'tin=arib-std-b67' 1
+& $checkCount $hlgCmd 'format=rgb24' 1
+$settings.SdrHdr = 1
+$generatedHdr = $pvType.GetMethod('ForCommand').Invoke($null, @($raw, $settings, [double]9, $sdJob))
+& $checkCount $generatedHdr 'tin=smpte2084' 1
+$settings.SdrHdr = 0
+$settings.RtxHdr = $true
+$trueHdr = $pvType.GetMethod('ForEncoder').Invoke($null, @('-i "raw" out.mkv', $settings, $false, $false, [double]9, $sdJob))
+& $checkCount $trueHdr 'tin=smpte2084' 1
+Write-Host 'PASS: HDR10/HLG preview display mapping, SDR passthrough, no double tone-map, TrueHDR output'
+
 Write-Host 'UI smoke: constructing main form.'
 $form = [Activator]::CreateInstance($mainType)
 try {
