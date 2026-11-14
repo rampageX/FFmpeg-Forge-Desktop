@@ -59,9 +59,41 @@ namespace FFmpegForge
 
         const string Fit = "scale='min(1280,iw)':-2:flags=bicubic";
 
-        static string Output(string map, string chain, string path, double seconds)
+        // The JPEG comparison window is SDR even when Windows HDR is enabled.
+        // Follow FGS's display-only chain (PQ/HLG -> linear -> Hable -> BT.709);
+        // NEVER put this chain in the actual video output.
+        internal static string DisplayFilter(Job source, bool hdr10Output)
         {
-            string vf = "fps=1" + (string.IsNullOrEmpty(chain) ? "" : "," + chain) + "," + Fit;
+            string transfer = hdr10Output ? "smpte2084" : (source == null ? null : source.ColorTransfer);
+            if (transfer != "smpte2084" && transfer != "arib-std-b67") return null;
+            string prim = hdr10Output ? "bt2020" : (source == null ? null : source.ColorPrimaries);
+            if (prim != "bt2020" && prim != "bt709" && prim != "smpte170m" && prim != "bt470bg")
+                prim = "bt2020";
+            string matrix = hdr10Output ? "bt2020nc" : (source == null ? null : source.ColorSpace);
+            if (matrix != "bt2020nc" && matrix != "bt2020c" && matrix != "bt709" &&
+                matrix != "smpte170m" && matrix != "bt470bg")
+                matrix = "bt2020nc";
+            string range = !hdr10Output && source != null && source.ColorRange == "pc" ? "pc" : "tv";
+            return "zscale=rin=" + range + ":pin=" + prim + ":tin=" + transfer + ":min=" + matrix +
+                   ":t=linear:npl=100,format=gbrpf32le,tonemap=tonemap=hable:desat=2," +
+                   "zscale=p=bt709:t=bt709:m=bt709:r=tv,format=p010le," +
+                   "setparams=range=tv:color_primaries=bt709:color_trc=bt709:colorspace=bt709";
+        }
+
+        // User-supplied HDR->SDR filters must not be tone-mapped a second time.
+        internal static bool AlreadySdr(string chain)
+        {
+            if (string.IsNullOrEmpty(chain)) return false;
+            return Regex.IsMatch(chain, @"(?:^|,)\\s*tonemap\\s*=", RegexOptions.IgnoreCase) ||
+                   Regex.IsMatch(chain, @"\\btonemapping\\s*=", RegexOptions.IgnoreCase) ||
+                   Regex.IsMatch(chain, @"\\bcolor_trc\\s*=\\s*(?:bt709|iec61966-2-1)\\b", RegexOptions.IgnoreCase);
+        }
+
+        static string Output(string map, string chain, string path, double seconds, string display)
+        {
+            string vf = "fps=1" + (string.IsNullOrEmpty(chain) ? "" : "," + chain) +
+                        (string.IsNullOrEmpty(display) ? "," + Fit :
+                            "," + display + "," + Fit + ":out_range=full,setsar=1,format=rgb24");
             return " -map " + map + " -vf " + Q(vf) + " -an -sn -dn" + (seconds > 0 ? " -t " + Formats.Inv(seconds + 1) : "") +
                    " -c:v mjpeg -q:v 3 -strict unofficial -threads 1 -y -f tee " +
                    // tee + onfail=ignore + a null slave: if the preview picture cannot be written (TEMP folder cleaned by
@@ -79,29 +111,35 @@ namespace FFmpegForge
         }
 
         /// Adds the preview outputs to an ordinary FFmpeg Forge command (input 0 = the source).
-        public static string ForCommand(string args, ConvSettings s, double seconds)
+        public static string ForCommand(string args, ConvSettings s, double seconds, Job source)
         {
             if (args == null || args.Contains("[vout]")) return args;
             string vf = null;
             var ms = VfRx.Matches(args);
             if (ms.Count > 0) vf = ms[ms.Count - 1].Groups[1].Value.Replace("\\\"", "\"");
-            return args + Output("0:v:0", Rotation(s), Before, seconds) + Output("0:v:0", vf, After, seconds);
+            bool hdr10Output = s.SdrHdr > 0 || s.RtxHdr;
+            string before = DisplayFilter(source, false);
+            string after = (hdr10Output || !AlreadySdr(vf)) ? DisplayFilter(source, hdr10Output) : null;
+            return args + Output("0:v:0", Rotation(s), Before, seconds, before) +
+                          Output("0:v:0", vf, After, seconds, after);
         }
 
         /// Adds the "before" output to a decoder command (input 0 = the source).
-        public static string ForDecoder(string decArgs, ConvSettings s, double seconds)
+        public static string ForDecoder(string decArgs, ConvSettings s, double seconds, Job source)
         {
-            return decArgs == null ? null : decArgs + Output("0:v:0", Rotation(s), Before, seconds);
+            return decArgs == null ? null : decArgs + Output("0:v:0", Rotation(s), Before, seconds, DisplayFilter(source, false));
         }
 
         /// Adds the preview outputs to an encoder command whose input 0 is the processed picture and
         /// input 1 the source (RTX driver engine, SeedVR2 and VisionNext final encodes).
-        public static string ForEncoder(string encArgs, ConvSettings s, bool sourceIsInput1, bool afterNeedsRotation, double seconds)
+        public static string ForEncoder(string encArgs, ConvSettings s, bool sourceIsInput1, bool afterNeedsRotation, double seconds, Job source)
         {
             if (encArgs == null) return null;
             string a = encArgs;
-            if (sourceIsInput1) a += Output("1:v:0", Rotation(s), Before, seconds);
-            a += Output("0:v:0", afterNeedsRotation ? Rotation(s) : null, After, seconds);
+            if (sourceIsInput1) a += Output("1:v:0", Rotation(s), Before, seconds, DisplayFilter(source, false));
+            bool hdr10Output = s.SdrHdr > 0 || s.RtxHdr;
+            a += Output("0:v:0", afterNeedsRotation ? Rotation(s) : null, After, seconds,
+                        DisplayFilter(source, hdr10Output));
             return a;
         }
     }
