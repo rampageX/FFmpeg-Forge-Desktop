@@ -2,7 +2,7 @@ name: Build FFmpeg Forge Lite (Windows)
 
 on:
   push:
-    branches: [main, release/v2.3.2, forge/scale-window-ux]
+    branches: [main, release/v2.3.2, forge/scale-window-ux, forge/hdr-preview-tonemap]
     paths:
       - '.github/workflows/build-portable.yml'
       - 'src/**'
