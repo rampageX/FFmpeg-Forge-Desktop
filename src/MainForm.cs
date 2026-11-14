@@ -2220,6 +2220,14 @@ namespace FFmpegForge
                 }
                 bool srcHasPicture = job.Kind == MediaKind.Video || job.Kind == MediaKind.Image || CommandBuilder.IsAnimatedImageSource(job);
                 bool pv = usePreview && srcHasPicture && s.Format.Kind == MediaKind.Video;
+                // HDR display conversion is preview-only. If the selected FFmpeg lacks its
+                // filters, skip preview rather than failing an RTX/AI export pipeline.
+                if (pv && (job.IsHdr || s.SdrHdr > 0 || s.RtxHdr) &&
+                    (!FilterCatalog.Has("zscale") || !FilterCatalog.Has("tonemap")))
+                {
+                    pv = false;
+                    UI(() => Log("   HDR preview unavailable: selected FFmpeg needs zscale + tonemap; export continues unchanged.", Theme.Muted));
+                }
                 if (pv)
                 {
                     PreviewFrames.Reset();
