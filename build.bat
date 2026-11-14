@@ -1,6 +1,6 @@
 @echo off
 setlocal
-REM Portable 2.3.1: source in src\, generated executables only in dist\.
+REM Portable 2.3.3: source in src\, generated executables only in dist\.
 cd /d "%~dp0"
 if not exist "dist" mkdir "dist"
 set "CSC=%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
