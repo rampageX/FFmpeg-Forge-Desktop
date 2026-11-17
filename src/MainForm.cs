@@ -2237,6 +2237,7 @@ namespace FFmpegForge
                     {
                         if (previewWin == null || previewWin.IsDisposed) previewWin = new PreviewWindow();
                         previewWin.ShowNear(this);
+                        previewWin.Job = job;
                         previewWin.NewJob(title, stillSrc ? job.Path : null, null, null);
                         previewWin.SetStatus("converting…");
                     });
