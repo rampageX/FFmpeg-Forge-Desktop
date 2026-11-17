@@ -1,1 +1,0 @@
-Extracted from official FFmpegForge-2.4.0-Portable.rar downloaded 2026-11-18. Do not use as build source. Temporary inspection copies; GPL-3.0 upstream.
