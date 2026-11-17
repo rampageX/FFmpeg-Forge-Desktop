@@ -61,6 +61,58 @@ $trueHdr = $pvType.GetMethod('ForEncoder').Invoke($null, @('-i "raw" out.mkv', $
 & $checkCount $trueHdr 'tin=smpte2084' 1
 Write-Host 'PASS: HDR10/HLG preview display mapping, SDR passthrough, no double tone-map, TrueHDR output'
 
+# 2.4.0 film-strip UI smoke: render both comparison modes, exercise the 420ms
+# slide transition, progress header, per-job reset and memory/image ownership.
+$previewType = $asm.GetType('FFmpegForge.PreviewWindow', $true)
+$filmType = $asm.GetType('FFmpegForge.FilmStripView', $true)
+$filmHeaderType = $asm.GetType('FFmpegForge.PreviewHeader', $true)
+$pvForm = [Activator]::CreateInstance($previewType)
+try {
+    [void]$pvForm.Handle
+    $film = @($pvForm.Controls | Where-Object { $filmType.IsInstanceOfType($_) })[0]
+    $header = @($pvForm.Controls | Where-Object { $filmHeaderType.IsInstanceOfType($_) })[0]
+    if (-not $film -or -not $header) { throw 'Film preview is missing strip or progress header' }
+    $film.Size = New-Object System.Drawing.Size(900, 480)
+    $header.Size = New-Object System.Drawing.Size(900, 58)
+    $hdrJob.Progress = 0.45
+    $hdrJob.Duration = 90
+    $hdrJob.Started = [DateTime]::Now.AddSeconds(-20)
+    $pvForm.Job = $hdrJob
+    $pvForm.NewJob('PQ 10-bit colour preview', $null, $null, $null)
+    $pvForm.SetStatus('converting...')
+    if (-not $header.Recording) { throw 'Preview REC indicator did not enable' }
+    $original = New-Object System.Drawing.Bitmap(640, 360)
+    $first = New-Object System.Drawing.Bitmap(640, 360)
+    $film.SetImages($original, $first)
+    foreach ($i in 1..3) {
+        $next = New-Object System.Drawing.Bitmap(640, 360)
+        $film.SetImages($film.CurrentBefore, $next)
+    }
+    $update = $previewType.GetMethod('UpdateHeader', [Reflection.BindingFlags]'NonPublic,Instance')
+    [void]$update.Invoke($pvForm, @())
+    if ($film.FrameCount -ne 4 -or $header.Frames -ne 4) {
+        throw 'Film history, counter, or progress binding failed'
+    }
+    if ([Math]::Abs($header.Progress - 0.45) -gt 0.0001) {
+        throw 'Film header progress does not match encode job'
+    }
+    $render = New-Object System.Drawing.Bitmap(900, 480)
+    try {
+        $film.DrawToBitmap($render, (New-Object System.Drawing.Rectangle(0,0,900,480)))
+        $film.SideBySide = $true
+        $film.DrawToBitmap($render, (New-Object System.Drawing.Rectangle(0,0,900,480)))
+        $header.DrawToBitmap($render, (New-Object System.Drawing.Rectangle(0,0,900,58)))
+    }
+    finally { $render.Dispose() }
+    $pvForm.SetStatus('done')
+    if (-not $header.Done -or $header.Recording) { throw 'Film header DONE status incorrect' }
+    $pvForm.NewJob('Next file', $null, $null, $null)
+    if ($film.FrameCount -ne 0) { throw 'Film strip retained previous job frame count' }
+    Write-Host 'PASS: upstream 2.4.0 filmstrip preview renders slider/side-by-side, frame history, REC/DONE, progress and new-job reset'
+}
+finally { $pvForm.Dispose() }
+
+
 Write-Host 'UI smoke: constructing main form.'
 $form = [Activator]::CreateInstance($mainType)
 try {
