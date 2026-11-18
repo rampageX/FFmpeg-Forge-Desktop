@@ -2,7 +2,7 @@ name: Build FFmpeg Forge Lite (Windows)
 
 on:
   push:
-    branches: [main, release/v2.3.3, forge/scale-window-ux, forge/hdr-preview-tonemap, forge/upstream240-film-preview]
+    branches: [main, release/v2.3.4]
     paths:
       - '.github/workflows/build-portable.yml'
       - 'src/**'
@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       publish:
-        description: 'Publish v2.3.3 to Releases (main branch only)'
+        description: 'Publish v2.3.4 to Releases (main branch only)'
         type: boolean
         required: true
         default: false
@@ -33,13 +33,13 @@ jobs:
         with:
           lfs: false
 
-      - name: Compile v2.3.3 and produce FFMpegForgeLite.zip
+      - name: Compile v2.3.4 and produce FFMpegForgeLite.v2.3.4.zip
         id: package
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          ./scripts/Build-Portable.ps1 -Version 2.3.3 -UpstreamTag 2.3.0 -OutputDir dist
+          ./scripts/Build-Portable.ps1 -Version 2.3.4 -UpstreamTag 2.3.0 -OutputDir dist
 
       - name: WinForms STA smoke tests (including RIP layout)
         shell: pwsh
@@ -53,47 +53,43 @@ jobs:
             if ($p.ExitCode -ne 0) { throw "UI smoke test failed ($($p.ExitCode))" }
           } finally { $p.Dispose() }
 
-      - name: Name filmstrip test build with version suffix
-        if: ${{ github.ref == 'refs/heads/forge/upstream240-film-preview' }}
-        shell: pwsh
-        run: Copy-Item dist/FFMpegForgeLite.zip dist/FFMpegForgeLite.v2.3.3-film-preview.zip
-
       - name: Upload candidate for testing
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ github.ref == 'refs/heads/forge/upstream240-film-preview' && 'FFMpegForgeLite.v2.3.3-film-preview' || 'FFMpegForgeLite-2.3.3' }}
-          path: ${{ github.ref == 'refs/heads/forge/upstream240-film-preview' && 'dist/FFMpegForgeLite.v2.3.3-film-preview.zip' || 'dist/FFMpegForgeLite.zip' }}
+          name: FFMpegForgeLite.v2.3.4
+          path: dist/FFMpegForgeLite.v2.3.4.zip
           if-no-files-found: error
           retention-days: 30
 
       - name: Publish official Lite release (single ZIP only)
-        if: "${{ github.ref == 'refs/heads/main' && ((github.event_name == 'workflow_dispatch' && inputs.publish) || (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'release: FFmpeg Forge Lite 2.3.3'))) }}"
+        if: "${{ github.ref == 'refs/heads/main' && ((github.event_name == 'workflow_dispatch' && inputs.publish) || (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'release: FFmpeg Forge Lite 2.3.4'))) }}"
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
           ZIP_SHA256: ${{ steps.package.outputs.sha256 }}
         run: |
-          $tag = 'v2.3.3'
+          $tag = 'v2.3.4'
           gh release view $tag -R "$env:GITHUB_REPOSITORY" --json tagName 2>$null | Out-Null
           if ($LASTEXITCODE -eq 0) { throw "Refusing to overwrite existing tag $tag" }
           $notes = @"
-          FFmpeg Forge Lite 2.3.3 for Windows x64 (.NET Framework 4.x)
+          FFmpeg Forge Lite 2.3.4 for Windows x64 (.NET Framework 4.x)
 
-          Based on verified upstream FFmpeg Forge 2.3.0 official release source.
+          Based on verified upstream FFmpeg Forge 2.3.0 source and the authentic 2.4.0 filmstrip preview UI from the official upstream Portable RAR.
 
-          - Fixed washed-out / incorrect-color HDR10 (PQ) and HLG frames in the live before/after comparison preview.
-          - Preview JPEGs now use source color metadata and a display-only Hable HDR-to-SDR / BT.709 conversion based on the FGS preview approach.
-          - Avoids redundant tone mapping for user-filtered SDR results and supports SDR-to-HDR / RTX TrueHDR result previews.
-          - Uses FFprobe transfer, primaries, matrix and range tags. If zscale or tonemap is absent, HDR preview is skipped while export continues unchanged.
-          - The actual HDR video encoding and metadata are not changed.
-          - Retains the independent Scale window, compatibility guide, dark UI, AI controls and remembered window placements.
-          - Portable package still excludes FFmpeg / FFprobe / FFplay; RTX and Dolby Vision helper tools and license notices remain included.
+          - New 35 mm live filmstrip: sprocket holes, frame numbering, vignette, rolling transitions, REC / DONE / STOPPED, timecode, progress and ETA.
+          - Pause/P immediately freezes preview and animation without pausing video encoding.
+          - Review up to 16 recently sampled original/final pairs via ◀/▶ or PageUp/PageDown; Live resumes monitoring.
+          - Space toggles slider and side-by-side; Left/Right adjust the comparison split.
+          - Preserves the v2.3.3 HDR10 PQ/HLG Hable-to-BT.709 preview colour correction, SDR bypass and duplicate-tonemap avoidance.
+          - Encoding, HDR video metadata, Scale/OptiScaler, RTX/AI, dark UI, DVD RIP and window geometry remain unchanged.
+          - Portable ZIP omits FFmpeg/FFprobe/FFplay but retains original approved upstream helper executables and licence notices.
+          - One release ZIP named FFMpegForgeLite.v2.3.4.zip; GitHub automatically provides the two source archives.
 
-          The project owner visually accepted the HDR preview fix on Windows. GitHub Actions validated assembly version 2.3.3.0, ZIP manifest and SHA256, HDR10/HLG/SDR preview command generation, avoidance of double tone mapping, Scale route compatibility and window UI regressions.
+          Project owner approved the new filmstrip and Pause/Live on Windows. CI validates the version, package, HDR/SDR preview, pause/review buffer and standard WinForms, Scale and DVD RIP regressions.
           ZIP SHA256: $env:ZIP_SHA256
 
           Commit: $env:GITHUB_SHA
           "@
           $notes | Out-File -FilePath release-notes.md -Encoding utf8
-          gh release create $tag dist/FFMpegForgeLite.zip -R "$env:GITHUB_REPOSITORY" --target "$env:GITHUB_SHA" --title 'FFmpeg Forge Lite v2.3.3' --notes-file release-notes.md
+          gh release create $tag dist/FFMpegForgeLite.v2.3.4.zip -R "$env:GITHUB_REPOSITORY" --target "$env:GITHUB_SHA" --title 'FFmpeg Forge Lite v2.3.4' --notes-file release-notes.md
           if ($LASTEXITCODE -ne 0) { throw 'Official release creation failed' }

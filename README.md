@@ -1,10 +1,10 @@
-# FFmpeg Forge Lite 2.3.3
+# FFmpeg Forge Lite 2.3.4
 
 Portable Windows converter based on the **official FFmpeg Forge 2.3.0
 release source**, with fixes for dark WinForms controls, responsive
-DVD/Blu-ray ripper layout and slow/flashy options expansion.
+DVD/Blu-ray ripper layout, responsive settings, HDR10/HLG colour correction and 35 mm filmstrip preview with Pause/Live and review.
 
-**Download:** [FFMpegForgeLite.zip](https://github.com/rampageX/FFmpeg-Forge-Desktop/releases/latest/download/FFMpegForgeLite.zip)
+**Download:** [FFMpegForgeLite.v2.3.4.zip](https://github.com/rampageX/FFmpeg-Forge-Desktop/releases/download/v2.3.4/FFMpegForgeLite.v2.3.4.zip)
 
 Extract the ZIP, run **FFmpegForge.exe**, then choose your own **FFmpeg
 location...** (ffmpeg.exe, with ffprobe.exe next to it). No FFmpeg binaries
@@ -12,7 +12,7 @@ are bundled.
 
 ## Repository layout
 
-- src/ — current and authoritative 2.3.3 C# source
+- src/ — current and authoritative 2.3.4 C# source
 - shaders/, aidenoise/, qtgmc/ — shaders and embedded processing scripts
 - native/rtxhelper/ — optional NVIDIA RTX helper source
 - scripts/ — packaging and Windows UI regression tests
