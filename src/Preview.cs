@@ -151,11 +151,25 @@ namespace FFmpegForge
         readonly FilmStripView view;
         readonly PreviewHeader header;
         readonly Label info;
-        readonly FlatBtn modeBtn;
+        readonly FlatBtn modeBtn, pauseBtn, prevBtn, nextBtn;
         readonly Timer timer;
         DateTime tBefore, tAfter;
         string folderIn, folderOut, staticBefore;
         DateTime tFolder;
+        const int ReviewLimit = 16;
+        sealed class StoredPair : IDisposable
+        {
+            public Bitmap Before, After;
+            public int Number;
+            public double Seconds;
+            public void Dispose() { if (Before != null) Before.Dispose(); if (After != null) After.Dispose(); }
+        }
+        readonly List<StoredPair> pairs = new List<StoredPair>();
+        Image latestBefore;
+        bool held;
+        int selected = -1, captured;
+        public bool PreviewPaused { get { return held; } }
+        public int RetainedFrames { get { return pairs.Count; } }
         /// Job being converted: progress, duration and start time for the header (set by the main window).
         public Job Job;
 
@@ -177,8 +191,18 @@ namespace FFmpegForge
             info = new Label { Dock = DockStyle.Fill, ForeColor = Color.FromArgb(150, 140, 125), TextAlign = ContentAlignment.MiddleLeft, Font = new Font("Segoe UI", 8.5f), Text = "Waiting for the first frame…" };
             modeBtn = new FlatBtn("Side by side") { Dock = DockStyle.Right, Width = Theme.S(140), Icon = "film" };
             modeBtn.Click += (s, e) => ToggleMode();
+            pauseBtn = new FlatBtn("Pause") { Dock = DockStyle.Right, Width = Theme.S(86) };
+            pauseBtn.Click += (s, e) => TogglePause();
+            prevBtn = new FlatBtn("◀") { Dock = DockStyle.Right, Width = Theme.S(48) };
+            prevBtn.Click += (s, e) => Step(-1);
+            nextBtn = new FlatBtn("▶") { Dock = DockStyle.Right, Width = Theme.S(48) };
+            nextBtn.Click += (s, e) => Step(1);
             bar.Controls.Add(info);
             bar.Controls.Add(modeBtn);
+            bar.Controls.Add(pauseBtn);
+            bar.Controls.Add(nextBtn);
+            bar.Controls.Add(prevBtn);
+            UpdateReviewButtons();
             Controls.Add(view);
             Controls.Add(bar);
             Controls.Add(header);
@@ -186,12 +210,15 @@ namespace FFmpegForge
             timer = new Timer { Interval = 400 };
             timer.Tick += (s, e) => { Poll(); UpdateHeader(); };
             timer.Start();
-            FormClosed += (s, e) => { timer.Stop(); view.Clear(); };
+            FormClosed += (s, e) => { timer.Stop(); ClearReview(); view.Clear(); };
             KeyDown += (s, e) =>
             {
                 if (e.KeyCode == Keys.Left) { view.Split = Math.Max(0, view.Split - 0.05f); view.Invalidate(); }
                 if (e.KeyCode == Keys.Right) { view.Split = Math.Min(1, view.Split + 0.05f); view.Invalidate(); }
-                if (e.KeyCode == Keys.Space) ToggleMode();
+                if (e.KeyCode == Keys.Space) { ToggleMode(); e.SuppressKeyPress = true; }
+                if (e.KeyCode == Keys.P) { TogglePause(); e.SuppressKeyPress = true; }
+                if (e.KeyCode == Keys.PageUp) { Step(-1); e.SuppressKeyPress = true; }
+                if (e.KeyCode == Keys.PageDown) { Step(1); e.SuppressKeyPress = true; }
             };
         }
 
@@ -214,20 +241,114 @@ namespace FFmpegForge
         {
             tBefore = tAfter = tFolder = DateTime.MinValue;
             folderIn = inFolder; folderOut = outFolder; staticBefore = staticBeforeImage;
+            ClearReview();
             view.NewReel();
             view.Title = title;
             header.Title = title ?? "";
-            Image sb = staticBefore != null ? LoadImg(staticBefore) : null;
-            if (sb != null) view.SetImages(sb, null);
+            latestBefore = staticBefore != null ? LoadImg(staticBefore) : null;
+            if (latestBefore != null) view.SetImages(CopyPicture(latestBefore), null, false);
+            UpdateReviewButtons();
             UpdateInfo(); UpdateHeader();
+        }
+
+
+        static Bitmap CopyPicture(Image source)
+        {
+            if (source == null) return null;
+            double k = Math.Min(1.0, Math.Min(1280.0 / Math.Max(1, source.Width), 720.0 / Math.Max(1, source.Height)));
+            int w = Math.Max(1, (int)Math.Round(source.Width * k));
+            int h = Math.Max(1, (int)Math.Round(source.Height * k));
+            var copy = new Bitmap(w, h);
+            using (var g = Graphics.FromImage(copy))
+            {
+                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                g.DrawImage(source, 0, 0, w, h);
+            }
+            return copy;
+        }
+
+        void ClearReview()
+        {
+            held = false;
+            selected = -1;
+            captured = 0;
+            foreach (var pair in pairs) pair.Dispose();
+            pairs.Clear();
+            if (latestBefore != null) latestBefore.Dispose();
+            latestBefore = null;
+            view.StopAnimation();
+        }
+
+        void UpdateReviewButtons()
+        {
+            pauseBtn.Text = held ? "Live ▶" : "Pause";
+            prevBtn.Enabled = pairs.Count > 0 && (held ? selected > 0 : pairs.Count > 1);
+            nextBtn.Enabled = held && selected >= 0 && selected < pairs.Count - 1;
+        }
+
+        void TogglePause()
+        {
+            held = !held;
+            view.StopAnimation();
+            selected = pairs.Count - 1;
+            if (!held)
+            {
+                ShowStored(selected, false);
+                Poll(); // Read the latest available JPEG; the encode has never stopped.
+            }
+            UpdateReviewButtons();
+            UpdateInfo();
+            UpdateHeader();
+        }
+
+        void Step(int offset)
+        {
+            if (pairs.Count == 0) return;
+            if (!held) { held = true; view.StopAnimation(); selected = pairs.Count - 1; }
+            selected = Math.Max(0, Math.Min(pairs.Count - 1, selected + offset));
+            ShowStored(selected, false);
+            UpdateReviewButtons();
+            UpdateInfo();
+            UpdateHeader();
+        }
+
+        void ShowStored(int index, bool animate)
+        {
+            if (index < 0 || index >= pairs.Count) return;
+            var pair = pairs[index];
+            view.FrameCount = animate ? pair.Number - 1 : pair.Number;
+            view.SetImages(CopyPicture(pair.Before), CopyPicture(pair.After), animate);
+        }
+
+        void AcceptFrame(Image final)
+        {
+            // Preserve both original and final images for accurate still comparison.
+            // Bound the cache to sixteen 1280x720 pairs; do not retain entire encodes.
+            var pair = new StoredPair
+            {
+                Before = CopyPicture(latestBefore),
+                After = CopyPicture(final),
+                Number = ++captured,
+                Seconds = Job == null ? 0 : Math.Max(0, Job.Duration * Job.Progress)
+            };
+            pairs.Add(pair);
+            if (pairs.Count > ReviewLimit) { pairs[0].Dispose(); pairs.RemoveAt(0); }
+            selected = pairs.Count - 1;
+            ShowStored(selected, true);
+            UpdateReviewButtons();
+            UpdateInfo();
+            UpdateHeader();
         }
 
         public void SetFolders(string inFolder, string outFolder) { folderIn = inFolder; folderOut = outFolder; }
 
         void UpdateInfo()
         {
-            info.Text = "Drag the line (or ← →) to compare the original and the final picture   ·   Space = " + (view.SideBySide ? "slider" : "side by side") +
-                        (status.Length > 0 ? "   ·   " + status : "");
+            info.Text = held
+                ? "HOLD · encoding continues · frame " + (selected >= 0 ? pairs[selected].Number.ToString() : "—") +
+                    " / " + captured + " · PgUp/PgDn = review · P = Live"
+                : "Live · P = pause · Space = " + (view.SideBySide ? "slider" : "side by side") +
+                    " · ← → = compare" + (status.Length > 0 ? " · " + status : "");
         }
 
         void UpdateHeader()
@@ -237,11 +358,14 @@ namespace FFmpegForge
             {
                 header.Progress = Math.Max(0, Math.Min(1, j.Progress));
                 double dur = j.Duration > 0 ? j.Duration : 0;
-                header.Timecode = dur > 0 ? Tc(dur * header.Progress) + " / " + Tc(dur) : "";
+                double seconds = held && selected >= 0 && selected < pairs.Count
+                    ? pairs[selected].Seconds : dur * header.Progress;
+                header.Timecode = dur > 0 ? Tc(seconds) + " / " + Tc(dur) : "";
                 double el = j.Started > DateTime.MinValue ? (DateTime.Now - j.Started).TotalSeconds : 0;
                 header.Eta = header.Recording && header.Progress > 0.02 && el > 1 ? "about " + Short(el * (1 - header.Progress) / header.Progress) + " left" : "";
             }
-            header.Frames = view.FrameCount;
+            header.Frames = Math.Max(captured, view.FrameCount);
+            header.Paused = held;
             header.Invalidate();
         }
 
@@ -265,30 +389,57 @@ namespace FFmpegForge
 
         void Poll()
         {
-            if (PreviewFrames.Dir == null) return;
+            // Pause only freezes the preview. The conversion and its progress continue.
+            if (held || PreviewFrames.Dir == null) return;
+            Image before = null, after = null;
             try
             {
-                bool changed = false;
-                Image nb = null, na = null;
-                var fb = new FileInfo(PreviewFrames.Before); var fa = new FileInfo(PreviewFrames.After);
-                if (fa.Exists && fa.LastWriteTimeUtc != tAfter) { na = LoadImg(fa.FullName); if (na != null) { tAfter = fa.LastWriteTimeUtc; changed = true; } }
-                if (fb.Exists && fb.LastWriteTimeUtc != tBefore) { nb = LoadImg(fb.FullName); if (nb != null) { tBefore = fb.LastWriteTimeUtc; changed = true; } }
-                // AI upscalers working on picture folders (VisionNext): newest upscaled frame + its source frame
-                if (na == null && tAfter == DateTime.MinValue && folderOut != null && Directory.Exists(folderOut))
+                var fb = new FileInfo(PreviewFrames.Before);
+                var fa = new FileInfo(PreviewFrames.After);
+                if (fb.Exists && fb.LastWriteTimeUtc != tBefore)
                 {
-                    var last = new DirectoryInfo(folderOut).GetFiles("*.png", SearchOption.AllDirectories).OrderBy(f => f.Name).LastOrDefault();
-                    if (last != null && last.LastWriteTimeUtc != tFolder && DateTime.UtcNow - last.LastWriteTimeUtc > TimeSpan.FromMilliseconds(300))
+                    before = LoadImg(fb.FullName);
+                    if (before != null) tBefore = fb.LastWriteTimeUtc;
+                }
+                if (fa.Exists && fa.LastWriteTimeUtc != tAfter)
+                {
+                    after = LoadImg(fa.FullName);
+                    if (after != null) tAfter = fa.LastWriteTimeUtc;
+                }
+                // Image-folder AI pipeline: pair each new result with its source.
+                if (after == null && tAfter == DateTime.MinValue && folderOut != null && Directory.Exists(folderOut))
+                {
+                    var last = new DirectoryInfo(folderOut).GetFiles("*.png", SearchOption.AllDirectories)
+                        .OrderBy(f => f.Name).LastOrDefault();
+                    if (last != null && last.LastWriteTimeUtc != tFolder &&
+                        DateTime.UtcNow - last.LastWriteTimeUtc > TimeSpan.FromMilliseconds(300))
                     {
                         var m = Regex.Match(last.Name, @"^\d+");
                         string src = m.Success && folderIn != null ? Path.Combine(folderIn, m.Value + ".png") : null;
-                        var a = LoadImg(last.FullName);
-                        var b = src != null && File.Exists(src) ? LoadImg(src) : null;
-                        if (a != null) { tFolder = last.LastWriteTimeUtc; na = a; nb = b; changed = true; }
+                        var img = LoadImg(last.FullName);
+                        var orig = src != null && File.Exists(src) ? LoadImg(src) : null;
+                        if (img != null)
+                        {
+                            tFolder = last.LastWriteTimeUtc;
+                            if (before != null) before.Dispose();
+                            before = orig;
+                            after = img;
+                        }
+                        else if (orig != null) orig.Dispose();
                     }
                 }
-                if (changed) view.SetImages(nb ?? view.CurrentBefore, na ?? view.CurrentAfter);
+                if (before != null)
+                {
+                    if (latestBefore != null) latestBefore.Dispose();
+                    latestBefore = before;
+                    before = null;
+                    if (after == null && view.CurrentAfter == null)
+                        view.SetImages(CopyPicture(latestBefore), null, false);
+                }
+                if (after != null) AcceptFrame(after);
             }
-            catch { }
+            catch { /* Incomplete JPEGs or missing folders must never break the encoder. */ }
+            finally { if (before != null) before.Dispose(); if (after != null) after.Dispose(); }
         }
 
         public void ShowNear(Form owner)
@@ -311,7 +462,7 @@ namespace FFmpegForge
         public string Title = "", Timecode = "", Eta = "";
         public double Progress;
         public int Frames;
-        public bool Recording, Done, Failed;
+        public bool Recording, Done, Failed, Paused;
         bool blink;
         readonly Timer t;
 
@@ -371,8 +522,8 @@ namespace FFmpegForge
                 string sub = (Frames > 0 ? Frames + " frame" + (Frames > 1 ? "s" : "") + " previewed" : "") + (Eta.Length > 0 ? (Frames > 0 ? "  ·  " : "") + Eta : "");
                 var ss = TextRenderer.MeasureText(sub, f2);
                 TextRenderer.DrawText(g, sub, f2, new Point(Width - pad - ss.Width, Theme.S(31)), Color.FromArgb(150, 140, 125), TextFormatFlags.NoPadding);
-                string tag = Failed ? "STOPPED" : Done ? "DONE" : Recording ? "REC" : "READY";
-                Color tc2 = Failed ? Theme.Error : Done ? Theme.Success : Color.FromArgb(235, 70, 60);
+                string tag = Failed ? "STOPPED" : Done ? "DONE" : Paused ? "HOLD" : Recording ? "REC" : "READY";
+                Color tc2 = Failed ? Theme.Error : Done ? Theme.Success : Paused ? Theme.Gold : Color.FromArgb(235, 70, 60);
                 var ts = TextRenderer.MeasureText(tag, f1);
                 int tx = rx - Theme.S(26) - ts.Width;
                 var pill = new RectangleF(tx - Theme.S(26), Theme.S(6), ts.Width + Theme.S(38), Theme.S(24));
@@ -442,12 +593,15 @@ namespace FFmpegForge
             history.Clear();
         }
 
-        public void NewReel() { Clear(); FrameCount = 0; slide = 0; Invalidate(); }
+        public void StopAnimation() { anim.Stop(); slide = 0; Invalidate(); }
+        public void NewReel() { Clear(); FrameCount = 0; StopAnimation(); }
 
-        public void SetImages(Image b, Image a)
+        public void SetImages(Image b, Image a) { SetImages(b, a, true); }
+
+        public void SetImages(Image b, Image a, bool animate)
         {
             bool newFrame = a != null && !ReferenceEquals(a, after);
-            if (newFrame && after != null)
+            if (animate && newFrame && after != null)
             {
                 // the frame that leaves the gate goes into the history (small copy)
                 try
@@ -463,11 +617,12 @@ namespace FFmpegForge
             if (before != null && !ReferenceEquals(before, b)) before.Dispose();
             if (after != null && !ReferenceEquals(after, a)) after.Dispose();
             before = b; after = a;
-            if (newFrame)
+            if (animate && newFrame)
             {
                 FrameCount++;
                 if (FrameCount > 1) { slide = 1; animStart = DateTime.Now; anim.Start(); }
             }
+            else if (!animate) StopAnimation();
             Invalidate();
         }
 
