@@ -109,6 +109,61 @@ try {
     $pvForm.NewJob('Next file', $null, $null, $null)
     if ($film.FrameCount -ne 0) { throw 'Film strip retained previous job frame count' }
     Write-Host 'PASS: upstream 2.4.0 filmstrip preview renders slider/side-by-side, frame history, REC/DONE, progress and new-job reset'
+
+    # Freeze the film during conversion, inspect retained before/after pairs,
+    # and resume without losing the underlying encoding progress.
+    $pvForm.SetStatus('converting...')
+    $setBefore = $previewType.GetField('latestBefore', $flags)
+    $acceptFrame = $previewType.GetMethod('AcceptFrame', $flags)
+    $togglePause = $previewType.GetMethod('TogglePause', $flags)
+    $stepFrame = $previewType.GetMethod('Step', $flags)
+    $pollPreview = $previewType.GetMethod('Poll', $flags)
+    if (-not $setBefore -or -not $acceptFrame -or -not $togglePause -or -not $stepFrame -or -not $pollPreview) {
+        throw 'Pause/review API missing'
+    }
+    $source = New-Object System.Drawing.Bitmap(640,360)
+    $setBefore.SetValue($pvForm, $source)
+    foreach ($i in 1..4) {
+        $frame = New-Object System.Drawing.Bitmap(640,360)
+        try { [void]$acceptFrame.Invoke($pvForm, @($frame)) }
+        finally { $frame.Dispose() }
+    }
+    if ($pvForm.RetainedFrames -ne 4) { throw 'Preview did not cache original/final frame pairs' }
+    [void]$togglePause.Invoke($pvForm, @())
+    if (-not $pvForm.PreviewPaused -or -not $header.Paused) { throw 'Film was not paused' }
+    $frozenImage = $film.CurrentAfter
+    $hdrJob.Progress = 0.75
+    [void]$update.Invoke($pvForm, @())
+    if ([Math]::Abs($header.Progress - 0.75) -gt 0.0001) { throw 'Encoding progress stopped during preview hold' }
+
+    $fakeFinal = New-Object System.Drawing.Bitmap(640,360)
+    $fakeOriginal = New-Object System.Drawing.Bitmap(640,360)
+    try {
+        $fakeFinal.Save($pvType.GetProperty('After').GetValue($null), [System.Drawing.Imaging.ImageFormat]::Jpeg)
+        $fakeOriginal.Save($pvType.GetProperty('Before').GetValue($null), [System.Drawing.Imaging.ImageFormat]::Jpeg)
+    } finally { $fakeFinal.Dispose(); $fakeOriginal.Dispose() }
+    [void]$pollPreview.Invoke($pvForm, @())
+    if ($pvForm.RetainedFrames -ne 4 -or -not [object]::ReferenceEquals($frozenImage, $film.CurrentAfter)) {
+        throw 'Paused preview consumed new frames or advanced displayed film'
+    }
+    [void]$stepFrame.Invoke($pvForm, @([int]-1))
+    if (-not $pvForm.PreviewPaused -or [object]::ReferenceEquals($frozenImage, $film.CurrentAfter)) {
+        throw 'Previous-frame review did not replace the frozen image'
+    }
+    [void]$stepFrame.Invoke($pvForm, @([int]1))
+    [void]$togglePause.Invoke($pvForm, @())
+    if ($pvForm.PreviewPaused -or $header.Paused -or $pvForm.RetainedFrames -ne 5) {
+        throw 'Live resume failed to consume the latest frame'
+    }
+    foreach ($i in 1..20) {
+        $frame = New-Object System.Drawing.Bitmap(160,90)
+        try { [void]$acceptFrame.Invoke($pvForm, @($frame)) }
+        finally { $frame.Dispose() }
+    }
+    if ($pvForm.RetainedFrames -ne 16) { throw 'Review cache must remain bounded to 16 pairs' }
+    $pvForm.NewJob('Third file', $null, $null, $null)
+    if ($pvForm.RetainedFrames -ne 0 -or $pvForm.PreviewPaused) { throw 'New encoding job retained paused frames' }
+    Write-Host 'PASS: HOLD/Live, frame navigation, preview-only freeze, running encode progress, resume and 16-pair bound'
 }
 finally { $pvForm.Dispose() }
 
