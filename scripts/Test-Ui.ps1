@@ -125,7 +125,7 @@ try {
     $setBefore.SetValue($pvForm, $source)
     foreach ($i in 1..4) {
         $frame = New-Object System.Drawing.Bitmap(640,360)
-        try { [void]$acceptFrame.Invoke($pvForm, @($frame)) }
+        try { $argsForFrame = New-Object 'object[]' 1; $argsForFrame[0] = [System.Drawing.Image]$frame; [void]$acceptFrame.Invoke($pvForm, $argsForFrame) }
         finally { $frame.Dispose() }
     }
     if ($pvForm.RetainedFrames -ne 4) { throw 'Preview did not cache original/final frame pairs' }
@@ -157,7 +157,7 @@ try {
     }
     foreach ($i in 1..20) {
         $frame = New-Object System.Drawing.Bitmap(160,90)
-        try { [void]$acceptFrame.Invoke($pvForm, @($frame)) }
+        try { $argsForFrame = New-Object 'object[]' 1; $argsForFrame[0] = [System.Drawing.Image]$frame; [void]$acceptFrame.Invoke($pvForm, $argsForFrame) }
         finally { $frame.Dispose() }
     }
     if ($pvForm.RetainedFrames -ne 16) { throw 'Review cache must remain bounded to 16 pairs' }
