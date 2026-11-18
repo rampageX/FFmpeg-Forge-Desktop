@@ -53,11 +53,16 @@ jobs:
             if ($p.ExitCode -ne 0) { throw "UI smoke test failed ($($p.ExitCode))" }
           } finally { $p.Dispose() }
 
+      - name: Name filmstrip test build with version suffix
+        if: ${{ github.ref == 'refs/heads/forge/upstream240-film-preview' }}
+        shell: pwsh
+        run: Copy-Item dist/FFMpegForgeLite.zip dist/FFMpegForgeLite.v2.3.3-film-preview.zip
+
       - name: Upload candidate for testing
         uses: actions/upload-artifact@v4
         with:
-          name: FFMpegForgeLite-2.3.3
-          path: dist/FFMpegForgeLite.zip
+          name: ${{ github.ref == 'refs/heads/forge/upstream240-film-preview' && 'FFMpegForgeLite.v2.3.3-film-preview' || 'FFMpegForgeLite-2.3.3' }}
+          path: ${{ github.ref == 'refs/heads/forge/upstream240-film-preview' && 'dist/FFMpegForgeLite.v2.3.3-film-preview.zip' || 'dist/FFMpegForgeLite.zip' }}
           if-no-files-found: error
           retention-days: 30
 
