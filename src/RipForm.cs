@@ -266,7 +266,7 @@ namespace FFmpegForge
             bar = new DarkProgressBar { Dock = DockStyle.Fill, Height = Theme.S(12),
                 Margin = new Padding(0, Theme.S(17), Theme.S(16), Theme.S(17)), Maximum = 1000 };
             btnRip = Btn("RIP", 170, true); btnRip.Glow = true; btnRip.Icon = "refresh"; btnRip.Height = Theme.S(44); btnRip.Click += (s, e) => StartRip();
-            btnCancel = Btn("Cancel", 110); btnCancel.Icon = "x"; btnCancel.Height = Theme.S(44); btnCancel.Enabled = false; btnCancel.Click += (s, e) => { cancel = true; Log("Cancelling…", Theme.Gold); };
+            btnCancel = Btn("Cancel", 110); btnCancel.Icon = "x"; btnCancel.Height = Theme.S(44); btnCancel.Enabled = false; btnCancel.Click += (s, e) => { cancel = true; Log("Cancelling…", Theme.Accent1); };
             var bClose = Btn("Close", 110); bClose.Height = Theme.S(44); bClose.Click += (s, e) => Close();
             bottom.Controls.Add(bar, 0, 0); bottom.Controls.Add(btnCancel, 1, 0); bottom.Controls.Add(bClose, 2, 0); bottom.Controls.Add(btnRip, 3, 0);
             root.Controls.Add(bottom, 0, 4);
@@ -417,7 +417,7 @@ namespace FFmpegForge
             Status(s.Kind + (s.IsIso ? " image" : "") + " \"" + s.Label + "\" — " + n + " title" + (n > 1 ? "s" : "") + (chkShort.Checked ? " (1 minute or longer)" : "") +
                    ". The longest one is ticked; tick the others you want, and choose the tracks on the right.", Theme.Success);
             Log(s.Kind + " \"" + s.Label + "\": " + n + " title(s) found.", Theme.Success);
-            if (err != null) Log(err, Theme.Gold);
+            if (err != null) Log(err, Theme.Accent1);
             if (s.IsBluray && !s.HasLongPlaylist) Log("No playlist of 3 minutes or more on this Blu-ray: the clips (.m2ts) are read directly.", Theme.Muted);
         }
 
@@ -557,7 +557,7 @@ namespace FFmpegForge
                 var notes = new List<string>(); string err;
                 string args = RipBuilder.Build(s, t, o, outPath, chap, notes, out err);
                 if (args == null) { Log(name + ": " + err, Theme.Error); fails++; continue; }
-                foreach (var n in notes) Log("   " + n, Theme.Gold);
+                foreach (var n in notes) Log("   " + n, Theme.Accent1);
                 Log("▶ " + name + " (" + Dur(t.Duration) + ") → " + outPath, Theme.Text);
                 Log("   ffmpeg " + args, Theme.Muted);
                 Status("Ripping " + name + " (" + (i + 1) + " / " + titles.Count + ")…");
@@ -591,8 +591,8 @@ namespace FFmpegForge
                     bar.Value = cancel ? bar.Value : 1000;
                     string msg = cancel ? "Rip cancelled. " + done.Count + " title(s) finished." :
                                  "Finished: " + done.Count + " title(s) ripped" + (fails > 0 ? ", " + fails + " failed" : "") + " in " + Dur(sw.Elapsed.TotalSeconds) + " → " + o.OutDir;
-                    Status(msg, fails > 0 || cancel ? Theme.Gold : Theme.Success);
-                    Log(msg, fails > 0 || cancel ? Theme.Gold : Theme.Success);
+                    Status(msg, fails > 0 || cancel ? Theme.Accent1 : Theme.Success);
+                    Log(msg, fails > 0 || cancel ? Theme.Accent1 : Theme.Success);
                     if (done.Count > 0 && o.AddToList && addToList != null) { addToList(done.ToArray()); Log("Added to the FFmpeg Forge list.", Theme.Muted); }
                     if (!cancel && done.Count > 0) System.Media.SystemSounds.Asterisk.Play();
                 }));

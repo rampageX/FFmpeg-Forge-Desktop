@@ -216,7 +216,7 @@ namespace FFmpegForge
             var bClearLog = Btn("Clear log", 112); bClearLog.Icon = "erase"; bClearLog.Height = Theme.S(32); bClearLog.Font = fSmall; bClearLog.Dock = DockStyle.Right;
             bClearLog.Click += (s, e) => log.Clear();
             logHead.Controls.Add(logTitle); logHead.Controls.Add(bClearLog);
-            var logSep = new Panel { Height = 1, Dock = DockStyle.Bottom, BackColor = Color.FromArgb(36, 42, 56) };
+            var logSep = new Panel { Height = 1, Dock = DockStyle.Bottom, BackColor = Theme.Border };
             logHead.Controls.Add(logSep);
             log = new LogView { Dock = DockStyle.Fill, Margin = new Padding(0, Theme.S(2), 0, 0), Font = fUI, MonoFont = fMono };
             logCard.Controls.Add(logHead, 0, 0);
@@ -763,7 +763,7 @@ namespace FFmpegForge
             tips.SetToolTip(txtExtraInputs, "Additional files given to FFmpeg as inputs #1, #2… (separate with ;).\nNeeded by multi-input filters such as overlay (watermark), amix, hstack, concat…");
             var gl = new Label { Text = "Filtergraph  (-filter_complex, advanced)", ForeColor = Theme.Muted, Font = fUI, AutoSize = true, Margin = new Padding(0, Theme.S(6), 0, Theme.S(2)) };
             AddRow(secFilters, null, gl);
-            txtGraph = new TextBox { Multiline = true, Height = Theme.S(64), Dock = DockStyle.Fill, ScrollBars = ScrollBars.Vertical, BackColor = Theme.Card, ForeColor = Color.FromArgb(255, 214, 140), BorderStyle = BorderStyle.FixedSingle, Font = fMono, Margin = new Padding(0, 0, 0, Theme.S(2)) };
+            txtGraph = new TextBox { Multiline = true, Height = Theme.S(64), Dock = DockStyle.Fill, ScrollBars = ScrollBars.Vertical, BackColor = Theme.Card, ForeColor = Theme.Cyan, BorderStyle = BorderStyle.FixedSingle, Font = fMono, Margin = new Padding(0, 0, 0, Theme.S(2)) };
             tips.SetToolTip(txtGraph, "Full FFmpeg filtergraph. Inputs: [0:v] [0:a] (main file), [1:v] [1:a] (extra inputs)…\nName your final outputs [vout] and/or [aout] — they are mapped automatically.\nExample (watermark):  [0:v][1:v]overlay=W-w-20:H-h-20[vout]");
             AddRow(secFilters, null, txtGraph);
             var gh = new Label { Text = "Example: [0:v][1:v]overlay=W-w-20:H-h-20[vout]   — end outputs with [vout] / [aout].", ForeColor = Theme.Muted, Font = fSmall, AutoSize = true, MaximumSize = new Size(Theme.S(380), 0) };
@@ -808,7 +808,7 @@ namespace FFmpegForge
 
             // ---------- footer ----------
             var footer = new Panel { Dock = DockStyle.Bottom, Height = Theme.S(96), BackColor = Theme.Side, Padding = new Padding(Theme.S(28), Theme.S(18), Theme.S(24), Theme.S(18)) };
-            footer.Paint += (s2, e2) => { using (var pen = new Pen(Color.FromArgb(30, 36, 48))) e2.Graphics.DrawLine(pen, 0, 0, footer.Width, 0); };
+            footer.Paint += (s2, e2) => { using (var pen = new Pen(Theme.Border)) e2.Graphics.DrawLine(pen, 0, 0, footer.Width, 0); };
             var fRight = new FlowLayoutPanel { Dock = DockStyle.Right, Width = Theme.S(700), FlowDirection = FlowDirection.RightToLeft, WrapContents = false, BackColor = Theme.Side };
             btnConvert = Btn("CONVERT", 270); btnConvert.Glow = true; btnConvert.Icon = "refresh"; btnConvert.Height = Theme.S(60);
             btnConvert.Font = new Font("Segoe UI", 12f, FontStyle.Bold);
@@ -853,7 +853,7 @@ namespace FFmpegForge
         void BuildAdvisorCard()
         {
             advCard = new CardTable { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, ColumnCount = 2, RowCount = 1, Visible = false,
-                                      Padding = new Padding(Theme.S(20), Theme.S(12), Theme.S(14), Theme.S(12)), Margin = new Padding(0, 0, 0, Theme.S(10)), BackColor = Color.FromArgb(24, 29, 40) };
+                                      Padding = new Padding(Theme.S(20), Theme.S(12), Theme.S(14), Theme.S(12)), Margin = new Padding(0, 0, 0, Theme.S(10)), BackColor = Theme.Card };
             advCard.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             advCard.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             advCard.Paint += (s2, e2) =>
@@ -1035,7 +1035,7 @@ namespace FFmpegForge
             var l = new SectionHeader(title.Replace("  (", "  (").Trim(), SectionHeader.IconFor(title)) { BackColor = Theme.Panel, Margin = new Padding(0, 0, 0, Theme.S(6)) };
             t.Controls.Add(l, 0, 0);
             t.SetColumnSpan(l, 2);
-            var line = new Panel { Height = 1, Dock = DockStyle.Top, BackColor = Color.FromArgb(36, 42, 56), Margin = new Padding(0, 0, 0, Theme.S(8)) };
+            var line = new Panel { Height = 1, Dock = DockStyle.Top, BackColor = Theme.Border, Margin = new Padding(0, 0, 0, Theme.S(8)) };
             t.Controls.Add(line, 0, 1);
             t.SetColumnSpan(line, 2);
             t.RowCount = 2;
@@ -1115,7 +1115,7 @@ namespace FFmpegForge
         {
             var job = e.Item.Tag as Job;
             var g = e.Graphics;
-            Color bg = e.Item.Selected ? Theme.Selection : (e.ItemIndex % 2 == 0 ? Theme.Panel : Color.FromArgb(26, 29, 37));
+            Color bg = e.Item.Selected ? Theme.Selection : (e.ItemIndex % 2 == 0 ? Theme.Panel : Theme.Card);
             using (var b = new SolidBrush(bg)) g.FillRectangle(b, e.Bounds);
             if (e.Item.Selected && e.ColumnIndex == 0)
                 using (var a = Theme.AccentBrush(new RectangleF(e.Bounds.X, e.Bounds.Y, 3, e.Bounds.Height))) g.FillRectangle(a, e.Bounds.X, e.Bounds.Y, Theme.S(3), e.Bounds.Height);

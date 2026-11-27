@@ -11,6 +11,20 @@ if (Test-Path $root) { Remove-Item $root -Recurse -Force }
 Expand-Archive -LiteralPath $zip.FullName -DestinationPath $root
 $exe = Join-Path $root 'FFmpegForge.exe'
 $asm = [System.Reflection.Assembly]::LoadFrom($exe)
+# Graphite Aurora palette regression: exact upstream RGBs, warning remains amber.
+$themeType = $asm.GetType('FFmpegForge.Theme', $true)
+$expectedPalette = @{
+    Bg='0E0F12'; Panel='1E1F24'; Card='15161A'; CardHover='282A30'; Border='34363D'
+    Text='F1F4F8'; Muted='9EA4AF'; Cyan='22D3EE'; CyanDeep='06B6D4'; Indigo='6366F1'
+    Gold='22D3EE'; GoldDeep='06B6D4'; Blue='6366F1'; Accent1='FBBF24'; Accent2='6366F1'
+    Selection='18303C'; Side='0B0C0E'; Success='34D399'; Error='F86070'
+}
+foreach ($name in $expectedPalette.Keys) {
+    $color = $themeType.GetField($name).GetValue($null)
+    $rgb = '{0:X2}{1:X2}{2:X2}' -f $color.R, $color.G, $color.B
+    if ($rgb -ne $expectedPalette[$name]) { throw "Palette mismatch: $name = $rgb" }
+}
+Write-Host 'PASS: Graphite Aurora palette'
 $mainType = $asm.GetType('FFmpegForge.MainForm', $true)
 $comboType = $asm.GetType('FFmpegForge.DarkCombo', $true)
 $flags = [System.Reflection.BindingFlags]'Instance,NonPublic,Public'

@@ -8,24 +8,28 @@ namespace FFmpegForge
 {
     public static class Theme
     {
-        // FFmpeg Forge 2.0 — "Royal blue & gold" premium dark theme
-        public static readonly Color Bg = Color.FromArgb(12, 14, 19);            // window / page background
-        public static readonly Color Panel = Color.FromArgb(21, 25, 33);         // cards
-        public static readonly Color Card = Color.FromArgb(29, 34, 45);          // inputs inside cards
-        public static readonly Color CardHover = Color.FromArgb(38, 45, 60);
-        public static readonly Color Border = Color.FromArgb(44, 51, 66);
-        public static readonly Color Text = Color.FromArgb(236, 239, 245);
-        public static readonly Color Muted = Color.FromArgb(138, 148, 168);
-        public static readonly Color Gold = Color.FromArgb(245, 184, 61);
-        public static readonly Color GoldDeep = Color.FromArgb(222, 146, 28);
-        public static readonly Color Blue = Color.FromArgb(59, 130, 246);
-        public static readonly Color BlueDeep = Color.FromArgb(37, 84, 220);
-        public static readonly Color Accent1 = Gold;                              // titles, highlights, warnings
-        public static readonly Color Accent2 = Blue;                              // actions
+        // FFmpeg Forge 3.0 — "Graphite Aurora": near-black page, charcoal panels, cyan → indigo actions (Lite layout retained)
+        public static readonly Color Bg = Color.FromArgb(14, 15, 18);            // window / page background
+        public static readonly Color Panel = Color.FromArgb(30, 31, 36);         // cards, header, sidebar
+        public static readonly Color Card = Color.FromArgb(21, 22, 26);          // inputs / wells inside cards
+        public static readonly Color CardHover = Color.FromArgb(40, 42, 48);
+        public static readonly Color Border = Color.FromArgb(52, 54, 61);
+        public static readonly Color Text = Color.FromArgb(241, 244, 248);
+        public static readonly Color Muted = Color.FromArgb(158, 164, 175);
+        public static readonly Color Cyan = Color.FromArgb(34, 211, 238);
+        public static readonly Color CyanDeep = Color.FromArgb(6, 182, 212);
+        public static readonly Color Indigo = Color.FromArgb(99, 102, 241);
+        public static readonly Color AccentMuted = Color.FromArgb(18, 42, 52);    // tint behind active pills / toggled buttons
+        public static readonly Color Gold = Cyan;                                 // section icons, highlights (was gold in 2.x)
+        public static readonly Color GoldDeep = CyanDeep;
+        public static readonly Color Blue = Indigo;
+        public static readonly Color BlueDeep = Color.FromArgb(79, 70, 229);
+        public static readonly Color Accent1 = Color.FromArgb(251, 191, 36);      // warnings, "not installed" hints (amber)
+        public static readonly Color Accent2 = Indigo;                            // actions
         public static readonly Color Success = Color.FromArgb(52, 211, 153);
         public static readonly Color Error = Color.FromArgb(248, 96, 112);
-        public static readonly Color Selection = Color.FromArgb(28, 43, 72);
-        public static readonly Color Side = Color.FromArgb(9, 11, 15);            // sidebar
+        public static readonly Color Selection = Color.FromArgb(24, 48, 60);
+        public static readonly Color Side = Color.FromArgb(11, 12, 14);           // header / bottom bar background
 
         public static float Scale = 1f;
         public static int S(int px) { return (int)Math.Round(px * Scale); }
@@ -47,31 +51,31 @@ namespace FFmpegForge
 
         static RectangleF Safe(RectangleF r) { if (r.Width < 1) r.Width = 1; if (r.Height < 1) r.Height = 1; return r; }
 
-        /// Primary actions: royal blue.
+        /// Primary actions: cyan to indigo.
         public static LinearGradientBrush AccentBrush(RectangleF r)
         {
-            return new LinearGradientBrush(Safe(r), BlueDeep, Blue, LinearGradientMode.Horizontal);
+            return new LinearGradientBrush(Safe(r), CyanDeep, Indigo, LinearGradientMode.Horizontal);
         }
 
-        /// Highlights: gold.
+        /// Highlights: cyan / teal.
         public static LinearGradientBrush GoldBrush(RectangleF r)
         {
-            return new LinearGradientBrush(Safe(r), Gold, GoldDeep, LinearGradientMode.ForwardDiagonal);
+            return new LinearGradientBrush(Safe(r), Color.FromArgb(20, 184, 166), CyanDeep, LinearGradientMode.ForwardDiagonal);
         }
 
-        /// Progress: blue to gold.
+        /// Progress: cyan to indigo to violet.
         public static LinearGradientBrush ProgressBrush(RectangleF r)
         {
-            var b = new LinearGradientBrush(Safe(r), Blue, Gold, LinearGradientMode.Horizontal);
+            var b = new LinearGradientBrush(Safe(r), CyanDeep, Indigo, LinearGradientMode.Horizontal);
             var cb = new ColorBlend(3);
-            cb.Colors = new[] { BlueDeep, Blue, Gold };
+            cb.Colors = new[] { CyanDeep, Indigo, Color.FromArgb(168, 85, 247) };
             cb.Positions = new[] { 0f, 0.55f, 1f };
             b.InterpolationColors = cb;
             return b;
         }
     }
 
-    /// Rounded card (settings section): rounded corners by region, gold title drawn by the section's label.
+    /// Rounded card (settings section): rounded corners by region, cyan title drawn by the section's label.
     public class CardTable : TableLayoutPanel
     {
         public CardTable()
@@ -92,8 +96,8 @@ namespace FFmpegForge
             if (!Border || Width < 4 || Height < 4) return;
             var g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias;
             using (var p = Theme.Round(new RectangleF(0.5f, 0.5f, Width - 1.5f, Height - 1.5f), Theme.S(12)))
-            using (var pen = new Pen(Color.FromArgb(38, 46, 62))) g.DrawPath(pen, p);
-            using (var hl = new LinearGradientBrush(new RectangleF(0, 0, Width, 2), Color.FromArgb(0, 255, 255, 255), Color.FromArgb(28, 255, 214, 140), LinearGradientMode.Horizontal))
+            using (var pen = new Pen(Theme.Border)) g.DrawPath(pen, p);
+            using (var hl = new LinearGradientBrush(new RectangleF(0, 0, Width, 2), Color.FromArgb(0, 255, 255, 255), Color.FromArgb(28, Theme.Cyan), LinearGradientMode.Horizontal))
                 g.FillRectangle(hl, Theme.S(14), 0, Width - Theme.S(28), 1);
         }
     }
@@ -105,7 +109,7 @@ namespace FFmpegForge
         public bool Primary;
         public bool Gold;
         public bool Glass;           // translucent button over artwork (header)
-        public bool Glow;            // CONVERT: blue → gold gradient with a light rim
+        public bool Glow;            // CONVERT: cyan → indigo gradient with a light rim
         public string Icon;          // vector icon drawn before the text (Icons.Draw name)
         public Color? IconColor;
         bool toggled;
@@ -140,36 +144,36 @@ namespace FFmpegForge
             {
                 if (Glow && Enabled)
                 {
-                    using (var b = new LinearGradientBrush(r, Color.FromArgb(37, 99, 235), Color.FromArgb(245, 184, 61), LinearGradientMode.Horizontal))
+                    using (var b = new LinearGradientBrush(r, Theme.CyanDeep, Theme.Indigo, LinearGradientMode.Horizontal))
                     {
-                        var cb = new ColorBlend(4);
-                        cb.Colors = new[] { Color.FromArgb(37, 99, 235), Color.FromArgb(59, 130, 246), Color.FromArgb(96, 140, 230), Color.FromArgb(245, 184, 61) };
-                        cb.Positions = new[] { 0f, 0.55f, 0.82f, 1f };
+                        var cb = new ColorBlend(3);
+                        cb.Colors = new[] { Theme.CyanDeep, Color.FromArgb(59, 130, 246), Theme.Indigo };
+                        cb.Positions = new[] { 0f, 0.5f, 1f };
                         b.InterpolationColors = cb;
                         g.FillPath(b, path);
                     }
                     using (var hl = new LinearGradientBrush(new RectangleF(r.X, r.Y, r.Width, r.Height / 2 + 1), Color.FromArgb(60, 255, 255, 255), Color.FromArgb(0, 255, 255, 255), LinearGradientMode.Vertical))
                         g.FillPath(hl, path);
                     if (hover) using (var w = new SolidBrush(Color.FromArgb(down ? 36 : 22, 255, 255, 255))) g.FillPath(w, path);
-                    using (var pen = new Pen(Color.FromArgb(150, 255, 214, 140), 1.2f)) g.DrawPath(pen, path);
-                    fc = Color.White;
+                    using (var pen = new Pen(Color.FromArgb(90, 255, 255, 255), 1.2f)) g.DrawPath(pen, path);
+                    fc = Color.FromArgb(6, 8, 10);
                 }
                 else if (Glass && Enabled)
                 {
-                    using (var b = new SolidBrush(Color.FromArgb(hover ? 200 : 165, 12, 16, 28))) g.FillPath(b, path);
+                    using (var b = new SolidBrush(hover ? Theme.CardHover : Theme.Card)) g.FillPath(b, path);
                     using (var pen = new Pen(hover ? Color.FromArgb(200, Theme.Gold) : Color.FromArgb(70, 255, 255, 255), 1.2f)) g.DrawPath(pen, path);
                     fc = ForeColor;
                 }
                 else if (!Enabled)
                 {
-                    using (var b = new SolidBrush(Color.FromArgb(24, 28, 37))) g.FillPath(b, path);
-                    fc = Color.FromArgb(86, 94, 112);
+                    using (var b = new SolidBrush(Color.FromArgb(26, 27, 31))) g.FillPath(b, path);
+                    fc = Color.FromArgb(92, 96, 106);
                 }
                 else if (Gold)
                 {
                     using (var b = Theme.GoldBrush(r)) g.FillPath(b, path);
                     if (hover) using (var w = new SolidBrush(Color.FromArgb(down ? 40 : 28, 255, 255, 255))) g.FillPath(w, path);
-                    fc = Color.FromArgb(24, 18, 6);
+                    fc = Color.FromArgb(6, 8, 10);
                 }
                 else if (Primary)
                 {
@@ -178,18 +182,18 @@ namespace FFmpegForge
                     using (var hl = new LinearGradientBrush(new RectangleF(r.X, r.Y, r.Width, r.Height / 2 + 1), Color.FromArgb(46, 255, 255, 255), Color.FromArgb(0, 255, 255, 255), LinearGradientMode.Vertical))
                         g.FillPath(hl, path);
                     if (hover) using (var w = new SolidBrush(Color.FromArgb(down ? 36 : 22, 255, 255, 255))) g.FillPath(w, path);
-                    fc = Color.White;
+                    fc = Color.FromArgb(6, 8, 10);
                 }
                 else if (toggled)
                 {
-                    using (var b = new SolidBrush(Theme.Selection)) g.FillPath(b, path);
+                    using (var b = new SolidBrush(Theme.AccentMuted)) g.FillPath(b, path);
                     using (var pen = new Pen(Theme.Gold, Theme.S(1) * 1.4f)) g.DrawPath(pen, path);
                     fc = Theme.Gold;
                 }
                 else
                 {
                     using (var b = new SolidBrush(down ? Theme.Border : hover ? Theme.CardHover : Theme.Card)) g.FillPath(b, path);
-                    using (var pen = new Pen(hover ? Color.FromArgb(70, 82, 106) : Theme.Border)) g.DrawPath(pen, path);
+                    using (var pen = new Pen(hover ? Color.FromArgb(78, 81, 90) : Theme.Border)) g.DrawPath(pen, path);
                     fc = ForeColor;
                 }
             }
@@ -213,7 +217,7 @@ namespace FFmpegForge
         }
     }
 
-    /// Gradient progress bar (blue to gold).
+    /// Gradient progress bar (cyan to indigo).
     public class GradientBar : Control
     {
         double value;
@@ -244,7 +248,7 @@ namespace FFmpegForge
         }
     }
 
-    /// FFmpeg Forge logo: gold rounded tile with a navy lightning bolt.
+    /// FFmpeg Forge logo: cyan rounded tile with a dark lightning bolt.
     public static class Header
     {
         public static void DrawLogo(Graphics g, RectangleF lr)
@@ -259,7 +263,7 @@ namespace FFmpegForge
             }
             using (var p = Theme.Round(lr, lr.Width * 0.26f))
             {
-                using (var b = new LinearGradientBrush(lr, Color.FromArgb(255, 214, 120), Theme.GoldDeep, 50f)) g.FillPath(b, p);
+                using (var b = new LinearGradientBrush(lr, Color.FromArgb(165, 243, 252), Theme.GoldDeep, 50f)) g.FillPath(b, p);
                 using (var hl = new LinearGradientBrush(new RectangleF(lr.X, lr.Y, lr.Width, lr.Height / 2), Color.FromArgb(70, 255, 255, 255), Color.FromArgb(0, 255, 255, 255), LinearGradientMode.Vertical))
                     g.FillPath(hl, p);
             }
@@ -272,11 +276,11 @@ namespace FFmpegForge
                 new PointF(lr.X + 7.5f*u, lr.Y + 4.2f*u),
                 new PointF(lr.X + 5.2f*u, lr.Y + 4.2f*u),
             };
-            using (var w = new SolidBrush(Color.FromArgb(14, 22, 44))) g.FillPolygon(w, bolt);
+            using (var w = new SolidBrush(Theme.Bg)) g.FillPolygon(w, bolt);
         }
     }
 
-    /// Application header (2.1.6 design): cinematic artwork, big gold logo, "FFmpeg FORGE", version chip,
+    /// Application header (2.1.6 design): cinematic artwork, big cyan logo, "FFmpeg FORGE", version chip,
     /// FFmpeg status pill (StatusPill) — the "FFmpeg location…" button is added by the main window.
     public class TopHeader : Control
     {
@@ -328,7 +332,7 @@ namespace FFmpegForge
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
             // Flat dark header: no decorative artwork or image scaling.
-            using (var bg = new LinearGradientBrush(ClientRectangle, Color.FromArgb(16, 22, 38), Theme.Side, LinearGradientMode.Horizontal))
+            using (var bg = new LinearGradientBrush(ClientRectangle, Theme.Panel, Theme.Side, LinearGradientMode.Horizontal))
                 g.FillRectangle(bg, ClientRectangle);
 
             int ls = Theme.S(76);
@@ -347,7 +351,7 @@ namespace FFmpegForge
                 using (var sh = new SolidBrush(Color.FromArgb(120, 0, 0, 0))) { g.DrawString(a, f1, sh, x + 2, y + 2, StringFormat.GenericTypographic); g.DrawString(b, f1, sh, x + sa.Width + 2, y + 2, StringFormat.GenericTypographic); }
                 using (var w = new SolidBrush(Color.White)) g.DrawString(a, f1, w, x, y, StringFormat.GenericTypographic);
                 var gr = new RectangleF(x + sa.Width, y, sb.Width, sb.Height);
-                using (var br = new LinearGradientBrush(gr, Color.FromArgb(255, 214, 120), Color.FromArgb(232, 150, 30), LinearGradientMode.Vertical))
+                using (var br = new LinearGradientBrush(gr, Color.FromArgb(165, 243, 252), Color.FromArgb(199, 210, 254), LinearGradientMode.Vertical))
                     g.DrawString(b, f1, br, x + sa.Width, y, StringFormat.GenericTypographic);
                 // version chip
                 string v = "VERSION " + Version;
@@ -355,7 +359,7 @@ namespace FFmpegForge
                 var vr = new RectangleF(x + sa.Width + sb.Width + Theme.S(20), y + sa.Height / 2f - Theme.S(15), vs.Width + Theme.S(26), Theme.S(30));
                 using (var p = Theme.Round(vr, vr.Height / 2))
                 {
-                    using (var bb = new SolidBrush(Color.FromArgb(150, 14, 12, 8))) g.FillPath(bb, p);
+                    using (var bb = new SolidBrush(Theme.AccentMuted)) g.FillPath(bb, p);
                     using (var pen = new Pen(Theme.Gold, Theme.S(2))) g.DrawPath(pen, p);
                 }
                 TextRenderer.DrawText(g, v, f3, Rectangle.Round(vr), Theme.Gold, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
@@ -367,7 +371,7 @@ namespace FFmpegForge
                     TextRenderer.DrawText(g, txt, f2, new Point((int)sx, (int)sy), col, TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding);
                     sx += TextRenderer.MeasureText(g, txt, f2, Size.Empty, TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding).Width;
                 };
-                Color light = Color.FromArgb(178, 188, 208), dim = Color.FromArgb(150, 160, 182);
+                Color light = Theme.Text, dim = Theme.Muted;
                 part("Convert anything into everything.", light);
                 part("     Video  •  Audio  •  Image     —     " + (FormatCount > 0 ? FormatCount : Formats.All.Count) + " output formats" + (FilterCount > 0 ? "  •  " + FilterCount + " filters" : ""), dim);
             }
@@ -419,7 +423,7 @@ namespace FFmpegForge
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
-            using (var bg = new LinearGradientBrush(ClientRectangle, Color.FromArgb(14, 17, 25), Theme.Side, LinearGradientMode.Vertical)) g.FillRectangle(bg, ClientRectangle);
+            using (var bg = new LinearGradientBrush(ClientRectangle, Theme.Bg, Theme.Side, LinearGradientMode.Vertical)) g.FillRectangle(bg, ClientRectangle);
             // blue glow behind the brand
             using (var halo = new GraphicsPath())
             {
@@ -427,7 +431,7 @@ namespace FFmpegForge
                 using (var pb = new PathGradientBrush(halo) { CenterColor = Color.FromArgb(46, Theme.Blue), SurroundColors = new[] { Color.FromArgb(0, Theme.Blue) } })
                     g.FillPath(pb, halo);
             }
-            using (var pen = new Pen(Color.FromArgb(30, 36, 48))) g.DrawLine(pen, Width - 1, 0, Width - 1, Height);
+            using (var pen = new Pen(Theme.Border)) g.DrawLine(pen, Width - 1, 0, Width - 1, Height);
 
             // brand
             int ls = Theme.S(42);
@@ -453,7 +457,7 @@ namespace FFmpegForge
                 TextRenderer.DrawText(g, v, f2, Rectangle.Round(vr), Theme.Gold, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
             }
             using (var m = new Font("Segoe UI Semibold", 7.5f))
-                TextRenderer.DrawText(g, "WORKSPACE", m, new Point(Theme.S(26), Top0 - Theme.S(24)), Color.FromArgb(92, 102, 124));
+                TextRenderer.DrawText(g, "WORKSPACE", m, new Point(Theme.S(26), Top0 - Theme.S(24)), Theme.Muted);
 
             // items
             using (var f = new Font("Segoe UI Semibold", 10f))
@@ -467,16 +471,16 @@ namespace FFmpegForge
                         using (var p = Theme.Round(r, Theme.S(10)))
                         {
                             if (sel)
-                                using (var b = new LinearGradientBrush(r, Color.FromArgb(34, 52, 92), Color.FromArgb(20, 28, 44), LinearGradientMode.Horizontal)) g.FillPath(b, p);
-                            else using (var b = new SolidBrush(Color.FromArgb(20, 25, 35))) g.FillPath(b, p);
+                                using (var b = new LinearGradientBrush(r, Theme.Selection, Theme.AccentMuted, LinearGradientMode.Horizontal)) g.FillPath(b, p);
+                            else using (var b = new SolidBrush(Theme.CardHover)) g.FillPath(b, p);
                         }
                     if (sel)
                         using (var p = Theme.Round(new RectangleF(r.X, r.Y + Theme.S(10), Theme.S(4), r.Height - Theme.S(20)), Theme.S(2)))
                         using (var gb = Theme.GoldBrush(r)) g.FillPath(gb, p);
-                    Color ic = sel ? Theme.Gold : (it.Dim ? Color.FromArgb(70, 78, 96) : Color.FromArgb(150, 160, 182));
+                    Color ic = sel ? Theme.Gold : (it.Dim ? Color.FromArgb(92, 96, 106) : Theme.Muted);
                     var irc = new RectangleF(r.X + Theme.S(16), r.Y + (r.Height - Theme.S(20)) / 2f, Theme.S(20), Theme.S(20));
                     Icons.Draw(g, it.Icon, irc, ic);
-                    Color tc = sel ? Color.White : (it.Dim ? Color.FromArgb(80, 88, 106) : Color.FromArgb(196, 204, 220));
+                    Color tc = sel ? Color.White : (it.Dim ? Color.FromArgb(100, 106, 118) : Theme.Text);
                     TextRenderer.DrawText(g, it.Text, f, new Rectangle(r.X + Theme.S(48), r.Y, r.Width - Theme.S(48), r.Height), tc, TextFormatFlags.VerticalCenter | TextFormatFlags.Left);
                     if (it.Badge > 0)
                     {
@@ -492,11 +496,11 @@ namespace FFmpegForge
             var sr = new RectangleF(Theme.S(14), Height - Theme.S(150), Width - Theme.S(28), Theme.S(94));
             using (var p = Theme.Round(sr, Theme.S(12)))
             {
-                using (var b = new SolidBrush(Color.FromArgb(18, 22, 31))) g.FillPath(b, p);
-                using (var pen = new Pen(Color.FromArgb(34, 40, 54))) g.DrawPath(pen, p);
+                using (var b = new SolidBrush(Theme.Card)) g.FillPath(b, p);
+                using (var pen = new Pen(Theme.Border)) g.DrawPath(pen, p);
             }
             using (var f = new Font("Segoe UI Semibold", 7.5f))
-                TextRenderer.DrawText(g, "ENGINE", f, new Point((int)sr.X + Theme.S(14), (int)sr.Y + Theme.S(10)), Color.FromArgb(92, 102, 124));
+                TextRenderer.DrawText(g, "ENGINE", f, new Point((int)sr.X + Theme.S(14), (int)sr.Y + Theme.S(10)), Theme.Muted);
             using (var f = new Font("Segoe UI", 8.5f))
             {
                 string st = string.IsNullOrEmpty(Right1) ? "FFmpeg…" : Right1;
@@ -744,13 +748,13 @@ namespace FFmpegForge
                     var cr = new RectangleF(Width - cs.Width - Theme.S(56), Theme.S(26), cs.Width + Theme.S(28), Theme.S(30));
                     using (var p = Theme.Round(cr, cr.Height / 2))
                     {
-                        using (var b = new SolidBrush(Color.FromArgb(26, 31, 42))) g.FillPath(b, p);
+                        using (var b = new SolidBrush(Theme.CardHover)) g.FillPath(b, p);
                         using (var pen = new Pen(Color.FromArgb(140, Theme.Gold))) g.DrawPath(pen, p);
                     }
                     using (var d = new SolidBrush(Theme.Gold)) g.FillEllipse(d, cr.X + Theme.S(12), cr.Y + cr.Height / 2 - Theme.S(3), Theme.S(6), Theme.S(6));
                     TextRenderer.DrawText(g, Chip, f, new Rectangle((int)cr.X + Theme.S(22), (int)cr.Y, (int)cr.Width - Theme.S(26), (int)cr.Height), Theme.Text, TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.NoPrefix);
                 }
-            using (var pen = new Pen(Color.FromArgb(28, 33, 44))) g.DrawLine(pen, x, Height - 1, Width - Theme.S(28), Height - 1);
+            using (var pen = new Pen(Theme.Border)) g.DrawLine(pen, x, Height - 1, Width - Theme.S(28), Height - 1);
         }
     }
 
@@ -787,8 +791,8 @@ namespace FFmpegForge
         static readonly string[] Chips = { "Video", "Audio", "Image", "AI Denoise", "AI Upscale", "Dolby Atmos", "DSD" };
         static readonly string[] ChipIcons = { "film", "note", "image", "denoise", "upscale", "speaker", "wave" };
         static readonly Color[] ChipColors = {
-            Color.FromArgb(59, 130, 246), Color.FromArgb(168, 85, 247), Color.FromArgb(34, 197, 94), Color.FromArgb(245, 184, 61),
-            Color.FromArgb(139, 92, 246), Color.FromArgb(34, 211, 238), Color.FromArgb(236, 72, 153) };
+            Theme.Cyan, Theme.Cyan, Theme.Cyan, Theme.Cyan,
+            Theme.Cyan, Theme.Cyan, Theme.Cyan };
 
         protected override void OnPaint(PaintEventArgs e)
         {
@@ -802,7 +806,7 @@ namespace FFmpegForge
                 if (Highlight) using (var hb = new SolidBrush(Color.FromArgb(40, Theme.Blue))) g.FillPath(hb, clip);
             var r = new RectangleF(Theme.S(16), Theme.S(16), Width - Theme.S(32), Height - Theme.S(32));
             using (var p = Theme.Round(r, Theme.S(14)))
-            using (var pen = new Pen(Highlight ? Theme.Gold : Color.FromArgb(120, 150, 180, 230), Theme.S(1) * 1.3f) { DashStyle = DashStyle.Dash })
+            using (var pen = new Pen(Highlight ? Theme.Gold : Color.FromArgb(72, 76, 86), Theme.S(1) * 1.3f) { DashStyle = DashStyle.Dash })
                 g.DrawPath(pen, p);
 
             float cy = Height / 2f;
@@ -815,7 +819,7 @@ namespace FFmpegForge
             using (var f2 = new Font("Segoe UI", 11.5f))
             using (var f3 = new Font("Segoe UI Semibold", 9f))
             {
-                // "Drop your files here" with "here" in gold
+                // "Drop your files here" with "here" in cyan
                 string a = "Drop your files ", b = "here";
                 var tf = (StringFormat)StringFormat.GenericTypographic.Clone();
                 tf.FormatFlags |= StringFormatFlags.MeasureTrailingSpaces;
@@ -824,10 +828,10 @@ namespace FFmpegForge
                 float tx = (Width - sa.Width - sb.Width) / 2f, ty = lr.Bottom + Theme.S(22);
                 using (var sh = new SolidBrush(Color.FromArgb(150, 0, 0, 0))) g.DrawString(a + b, f1, sh, tx + 2, ty + 2, tf);
                 using (var w = new SolidBrush(Color.White)) g.DrawString(a, f1, w, tx, ty, tf);
-                using (var gb = new LinearGradientBrush(new RectangleF(tx + sa.Width, ty, sb.Width + 1, sb.Height + 1), Color.FromArgb(255, 214, 120), Color.FromArgb(232, 150, 30), LinearGradientMode.Vertical))
+                using (var gb = new LinearGradientBrush(new RectangleF(tx + sa.Width, ty, sb.Width + 1, sb.Height + 1), Color.FromArgb(165, 243, 252), Color.FromArgb(199, 210, 254), LinearGradientMode.Vertical))
                     g.DrawString(b, f1, gb, tx + sa.Width, ty, tf);
                 var sf = new StringFormat { Alignment = StringAlignment.Center };
-                using (var m = new SolidBrush(Color.FromArgb(178, 188, 208)))
+                using (var m = new SolidBrush(Theme.Text))
                     g.DrawString("or click to browse  —  videos, music, pictures, whole folders", f2, m, new RectangleF(0, ty + sa.Height + Theme.S(14), Width, Theme.S(28)), sf);
 
                 // feature chips
@@ -843,12 +847,12 @@ namespace FFmpegForge
                     var col = ChipColors[i];
                     using (var p = Theme.Round(cr, Theme.S(9)))
                     {
-                        using (var b2 = new LinearGradientBrush(cr, Color.FromArgb(200, 16, 20, 34), Color.FromArgb(200, Color.FromArgb(col.R / 6, col.G / 6, col.B / 6)), LinearGradientMode.Vertical)) g.FillPath(b2, p);
-                        using (var pen = new Pen(Color.FromArgb(210, col), Theme.S(1) * 1.4f)) g.DrawPath(pen, p);
+                        using (var b2 = new SolidBrush(Theme.Card)) g.FillPath(b2, p);
+                        using (var pen = new Pen(Theme.Border, Theme.S(1) * 1.4f)) g.DrawPath(pen, p);
                     }
                     float ix = cr.X + pad * scale;
-                    Icons.Draw(g, ChipIcons[i], new RectangleF(ix, cr.Y + (ch - isz) / 2f, isz, isz), Color.FromArgb(Math.Min(255, col.R + 40), Math.Min(255, col.G + 40), Math.Min(255, col.B + 40)));
-                    TextRenderer.DrawText(g, Chips[i], f3, new Rectangle((int)(ix + isz + Theme.S(8)), (int)cr.Y, (int)(cr.Right - ix - isz - Theme.S(8)), ch), Color.FromArgb(230, 234, 242),
+                    Icons.Draw(g, ChipIcons[i], new RectangleF(ix, cr.Y + (ch - isz) / 2f, isz, isz), col);
+                    TextRenderer.DrawText(g, Chips[i], f3, new Rectangle((int)(ix + isz + Theme.S(8)), (int)cr.Y, (int)(cr.Right - ix - isz - Theme.S(8)), ch), Theme.Text,
                         TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
                     x += (ws[i] + gap) * scale;
                 }

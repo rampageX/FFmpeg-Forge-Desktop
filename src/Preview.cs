@@ -457,6 +457,13 @@ namespace FFmpegForge
     }
 
     /// Header of the preview: film-reel icon, LIVE PREVIEW, file name, REC light, timecode, progress along a film edge.
+    // Filmstrip art intentionally retains the 2.4.0 warm palette independently of the app theme.
+    internal static class FilmPreviewPalette
+    {
+        internal static readonly Color Gold = Color.FromArgb(245, 184, 61);
+        internal static readonly Color GoldDeep = Color.FromArgb(222, 146, 28);
+    }
+
     public class PreviewHeader : Control
     {
         public string Title = "", Timecode = "", Eta = "";
@@ -505,13 +512,13 @@ namespace FFmpegForge
             var ir = new RectangleF(pad, (Height - ih) / 2 - Theme.S(2), ih, ih);
             // hole punched in a holder: hole in backdrop colour, reel in gold
             using (var b = new SolidBrush(Color.FromArgb(10, 9, 8))) g.FillEllipse(b, ir);
-            Reel(g, ir, Theme.Gold);
+            Reel(g, ir, FilmPreviewPalette.Gold);
             float x = ir.Right + Theme.S(12);
             using (var f1 = new Font("Segoe UI Semibold", 11.5f))
             using (var f2 = new Font("Segoe UI", 9f))
             using (var fm = new Font("Consolas", 10.5f, FontStyle.Bold))
             {
-                TextRenderer.DrawText(g, "LIVE PREVIEW", f1, new Point((int)x, Theme.S(8)), Theme.Gold, TextFormatFlags.NoPadding);
+                TextRenderer.DrawText(g, "LIVE PREVIEW", f1, new Point((int)x, Theme.S(8)), FilmPreviewPalette.Gold, TextFormatFlags.NoPadding);
                 TextRenderer.DrawText(g, Title, f2, new Rectangle((int)x, Theme.S(30), Math.Max(10, Width - (int)x - Theme.S(330)), Theme.S(18)), Color.FromArgb(205, 196, 182), TextFormatFlags.EndEllipsis | TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
                 // right: REC light, timecode, frames
                 int rx = Width - pad;
@@ -523,7 +530,7 @@ namespace FFmpegForge
                 var ss = TextRenderer.MeasureText(sub, f2);
                 TextRenderer.DrawText(g, sub, f2, new Point(Width - pad - ss.Width, Theme.S(31)), Color.FromArgb(150, 140, 125), TextFormatFlags.NoPadding);
                 string tag = Failed ? "STOPPED" : Done ? "DONE" : Paused ? "HOLD" : Recording ? "REC" : "READY";
-                Color tc2 = Failed ? Theme.Error : Done ? Theme.Success : Paused ? Theme.Gold : Color.FromArgb(235, 70, 60);
+                Color tc2 = Failed ? Theme.Error : Done ? Theme.Success : Paused ? FilmPreviewPalette.Gold : Color.FromArgb(235, 70, 60);
                 var ts = TextRenderer.MeasureText(tag, f1);
                 int tx = rx - Theme.S(26) - ts.Width;
                 var pill = new RectangleF(tx - Theme.S(26), Theme.S(6), ts.Width + Theme.S(38), Theme.S(24));
@@ -542,7 +549,7 @@ namespace FFmpegForge
             var track = new Rectangle(0, Height - ph, Width, ph);
             using (var b = new SolidBrush(Color.FromArgb(40, 34, 28))) g.FillRectangle(b, track);
             if (Progress > 0)
-                using (var b = new LinearGradientBrush(new Rectangle(0, track.Y, Math.Max(1, Width), ph), Theme.GoldDeep, Theme.Gold, 0f))
+                using (var b = new LinearGradientBrush(new Rectangle(0, track.Y, Math.Max(1, Width), ph), FilmPreviewPalette.GoldDeep, FilmPreviewPalette.Gold, 0f))
                     g.FillRectangle(b, 0, track.Y, (float)(Width * Progress), ph);
         }
     }
@@ -800,7 +807,7 @@ namespace FFmpegForge
                 FrameCell(g, lr, before, 0, false);
                 FrameCell(g, rr, after, 0, false);
                 Label(g, "ORIGINAL", lr.X + 10, lr.Y + 10, false, Color.FromArgb(170, 160, 145));
-                Label(g, after != null ? "FINAL" : "FINAL  (waiting…)", rr.Right - 10, rr.Y + 10, true, Theme.Gold);
+                Label(g, after != null ? "FINAL" : "FINAL  (waiting…)", rr.Right - 10, rr.Y + 10, true, FilmPreviewPalette.Gold);
                 lastFrame = RectangleF.Empty;
             }
             else
@@ -833,8 +840,8 @@ namespace FFmpegForge
                         using (var pen = new Pen(Color.FromArgb(235, 245, 230, 200), 2)) g.DrawLine(pen, sx, r.Top, sx, r.Bottom);
                         float cy = r.Y + r.Height / 2, hr = Math.Max(11, r.Height * 0.035f);
                         using (var b = new SolidBrush(Color.FromArgb(245, 238, 222))) g.FillEllipse(b, sx - hr, cy - hr, hr * 2, hr * 2);
-                        using (var pen = new Pen(Theme.Gold, 2)) g.DrawEllipse(pen, sx - hr, cy - hr, hr * 2, hr * 2);
-                        using (var b = new SolidBrush(Theme.GoldDeep))
+                        using (var pen = new Pen(FilmPreviewPalette.Gold, 2)) g.DrawEllipse(pen, sx - hr, cy - hr, hr * 2, hr * 2);
+                        using (var b = new SolidBrush(FilmPreviewPalette.GoldDeep))
                         {
                             float a = hr * 0.45f;
                             g.FillPolygon(b, new[] { new PointF(sx - a * 0.3f, cy - a), new PointF(sx - a * 1.25f, cy), new PointF(sx - a * 0.3f, cy + a) });
@@ -843,7 +850,7 @@ namespace FFmpegForge
                     }
                 }
                 Label(g, "ORIGINAL", r.X + 10, r.Y + 10, false, Color.FromArgb(170, 160, 145));
-                Label(g, after != null ? "FINAL" : "FINAL  (waiting…)", r.Right - 10, r.Y + 10, true, Theme.Gold);
+                Label(g, after != null ? "FINAL" : "FINAL  (waiting…)", r.Right - 10, r.Y + 10, true, FilmPreviewPalette.Gold);
                 lastFrame = r;
             }
         }

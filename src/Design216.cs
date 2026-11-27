@@ -236,9 +236,10 @@ namespace FFmpegForge
             {
                 case "check": return Theme.Success;
                 case "error": return Theme.Error;
-                case "warn": case "sparkle": return Theme.Gold;
+                case "warn": return Theme.Accent1;
+                case "sparkle": return Theme.Cyan;
                 case "play": return Theme.Blue;
-                default: return Color.FromArgb(70, 140, 250);
+                default: return Theme.Cyan;
             }
         }
 
@@ -251,7 +252,7 @@ namespace FFmpegForge
             int sbw = items.Count > Visible ? Theme.S(10) : 0;
             int w = Width - sbw - Theme.S(6);
             using (var fd = new Font(Font.FontFamily, Font.Size - 0.5f))
-            using (var sep = new Pen(Color.FromArgb(30, 36, 48)))
+            using (var sep = new Pen(Theme.Border))
                 for (int i = 0; i < n; i++)
                 {
                     int idx = top + i;
@@ -296,7 +297,7 @@ namespace FFmpegForge
             if (sbw > 0)
             {
                 var tr = ThumbRect();
-                using (var p = Theme.Round(tr, tr.Width / 2f)) using (var b = new SolidBrush(dragThumb ? Color.FromArgb(90, 100, 124) : Color.FromArgb(58, 66, 84))) g.FillPath(b, p);
+                using (var p = Theme.Round(tr, tr.Width / 2f)) using (var b = new SolidBrush(dragThumb ? Color.FromArgb(90, 94, 104) : Theme.Border)) g.FillPath(b, p);
             }
         }
 
@@ -305,7 +306,7 @@ namespace FFmpegForge
             if (c.ToArgb() == Theme.Success.ToArgb()) return Theme.Success;
             if (c.ToArgb() == Theme.Error.ToArgb()) return Theme.Error;
             if (c.ToArgb() == Theme.Gold.ToArgb()) return Theme.Gold;
-            if (c.ToArgb() == Theme.Muted.ToArgb()) return Color.FromArgb(170, 178, 196);
+            if (c.ToArgb() == Theme.Muted.ToArgb()) return Theme.Muted;
             if (c.ToArgb() == Theme.Text.ToArgb()) return Theme.Text;
             return c;
         }
