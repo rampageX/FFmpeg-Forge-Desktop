@@ -8,7 +8,10 @@ $zip = Get-ChildItem dist -Filter 'FFMpegForgeLite.v2.3.4.zip' | Select-Object -
 if (-not $zip) { throw 'Portable ZIP missing for UI smoke test' }
 $root = Join-Path $env:RUNNER_TEMP 'forge-ui-smoke'
 if (Test-Path $root) { Remove-Item $root -Recurse -Force }
-Expand-Archive -LiteralPath $zip.FullName -DestinationPath $root
+# Windows PowerShell 5.1's Expand-Archive can select an unavailable three-argument
+# overload on updated runner images. Use the .NET Framework two-argument API.
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+[System.IO.Compression.ZipFile]::ExtractToDirectory($zip.FullName, $root)
 $exe = Join-Path $root 'FFmpegForge.exe'
 $asm = [System.Reflection.Assembly]::LoadFrom($exe)
 # Graphite Aurora palette regression: exact upstream RGBs, warning remains amber.
