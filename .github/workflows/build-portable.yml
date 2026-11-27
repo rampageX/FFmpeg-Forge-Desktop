@@ -2,7 +2,7 @@ name: Build FFmpeg Forge Lite (Windows)
 
 on:
   push:
-    branches: [main, release/v2.3.4, test/graphite-3.0.1]
+    branches: [main, release/v2.3.5]
     paths:
       - '.github/workflows/build-portable.yml'
       - 'src/**'
@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       publish:
-        description: 'Publish v2.3.4 to Releases (main branch only)'
+        description: 'Publish v2.3.5 to Releases (main branch only)'
         type: boolean
         required: true
         default: false
@@ -33,13 +33,13 @@ jobs:
         with:
           lfs: false
 
-      - name: Compile v2.3.4 and produce FFMpegForgeLite.v2.3.4.zip
+      - name: Compile v2.3.5 and produce FFMpegForgeLite.v2.3.5.zip
         id: package
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          ./scripts/Build-Portable.ps1 -Version 2.3.4 -UpstreamTag 2.3.0 -OutputDir dist
+          ./scripts/Build-Portable.ps1 -Version 2.3.5 -UpstreamTag 2.3.0 -OutputDir dist
 
       - name: WinForms STA smoke tests (including RIP layout)
         shell: pwsh
@@ -56,40 +56,38 @@ jobs:
       - name: Upload candidate for testing
         uses: actions/upload-artifact@v4
         with:
-          name: FFMpegForgeLite.v2.3.4
-          path: dist/FFMpegForgeLite.v2.3.4.zip
+          name: FFMpegForgeLite.v2.3.5
+          path: dist/FFMpegForgeLite.v2.3.5.zip
           if-no-files-found: error
           retention-days: 30
 
       - name: Publish official Lite release (single ZIP only)
-        if: "${{ github.ref == 'refs/heads/main' && ((github.event_name == 'workflow_dispatch' && inputs.publish) || (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'release: FFmpeg Forge Lite 2.3.4'))) }}"
+        if: "${{ github.ref == 'refs/heads/main' && ((github.event_name == 'workflow_dispatch' && inputs.publish) || (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'release: FFmpeg Forge Lite 2.3.5'))) }}"
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
           ZIP_SHA256: ${{ steps.package.outputs.sha256 }}
         run: |
-          $tag = 'v2.3.4'
+          $tag = 'v2.3.5'
           gh release view $tag -R "$env:GITHUB_REPOSITORY" --json tagName 2>$null | Out-Null
           if ($LASTEXITCODE -eq 0) { throw "Refusing to overwrite existing tag $tag" }
           $notes = @"
-          FFmpeg Forge Lite 2.3.4 for Windows x64 (.NET Framework 4.x)
+          FFmpeg Forge Lite 2.3.5 for Windows x64 (.NET Framework 4.x)
 
-          Based on verified upstream FFmpeg Forge 2.3.0 source and the authentic 2.4.0 filmstrip preview UI from the official upstream Portable RAR.
+          Palette-only update based on Lite 2.3.4 and upstream FFmpeg Forge 3.0.1 tagged source.
 
-          - New 35 mm live filmstrip: sprocket holes, frame numbering, vignette, rolling transitions, REC / DONE / STOPPED, timecode, progress and ETA.
-          - Pause/P immediately freezes preview and animation without pausing video encoding.
-          - Review up to 16 recently sampled original/final pairs via ◀/▶ or PageUp/PageDown; Live resumes monitoring.
-          - Space toggles slider and side-by-side; Left/Right adjust the comparison split.
-          - Preserves the v2.3.3 HDR10 PQ/HLG Hable-to-BT.709 preview colour correction, SDR bypass and duplicate-tonemap avoidance.
-          - Encoding, HDR video metadata, Scale/OptiScaler, RTX/AI, dark UI, DVD RIP and window geometry remain unchanged.
-          - Portable ZIP omits FFmpeg/FFprobe/FFplay but retains original approved upstream helper executables and licence notices.
-          - One release ZIP named FFMpegForgeLite.v2.3.4.zip; GitHub automatically provides the two source archives.
+          - Graphite Aurora: graphite backgrounds, cyan highlights, indigo actions and refreshed progress gradients.
+          - Apply the palette to the main window, settings, logs, dark controls and DVD/Blu-ray RIP.
+          - Preserve the warm 35 mm filmstrip preview, all existing layouts, processing features and runtime helpers.
+          - No upstream 3.0.1 processing features or AI models imported.
+          - Fix Windows CI smoke-test ZIP extraction using the .NET Framework API; retain all existing regression checks.
+          - Portable ZIP omits FFmpeg/FFprobe/FFplay and retains the approved upstream 2.3.0 helper binaries and licences.
 
-          Project owner approved the new filmstrip and Pause/Live on Windows. CI validates the version, package, HDR/SDR preview, pause/review buffer and standard WinForms, Scale and DVD RIP regressions.
+          Project owner approved the palette on Windows; CI verifies the package, palette and WinForms regressions.
           ZIP SHA256: $env:ZIP_SHA256
 
           Commit: $env:GITHUB_SHA
           "@
           $notes | Out-File -FilePath release-notes.md -Encoding utf8
-          gh release create $tag dist/FFMpegForgeLite.v2.3.4.zip -R "$env:GITHUB_REPOSITORY" --target "$env:GITHUB_SHA" --title 'FFmpeg Forge Lite v2.3.4' --notes-file release-notes.md
+          gh release create $tag dist/FFMpegForgeLite.v2.3.5.zip -R "$env:GITHUB_REPOSITORY" --target "$env:GITHUB_SHA" --title 'FFmpeg Forge Lite v2.3.5' --notes-file release-notes.md
           if ($LASTEXITCODE -ne 0) { throw 'Official release creation failed' }

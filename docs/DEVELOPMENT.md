@@ -1,6 +1,6 @@
 # Development and upstream updates
 
-Source of truth: src/ (Lite 2.3.1). The upstream GitHub main branch was
+Source of truth: src/ (Lite 2.3.5). The upstream GitHub main branch was
 older than its v2.3.0 RAR Source/, so never replace src/ with upstream
 GitHub main without an explicit version review.
 
@@ -20,3 +20,5 @@ To merge upstream changes:
 
 A separate workflow fetches upstream main metadata for review without
 automatically restoring obsolete files.
+
+Lite 2.3.5 uses only the Graphite Aurora palette from the upstream 3.0.1 Git tag (691adc3dc921b9765a4839ba782bc16d10f4a0f0). The portable RAR source was not compared for this palette-only change. Processing and helper baselines remain unchanged.

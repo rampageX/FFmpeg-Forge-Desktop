@@ -1,8 +1,8 @@
-# FFmpeg Forge Lite 2.3.4: canonical source is in src/, build output in dist/.
+# FFmpeg Forge Lite 2.3.5: canonical source is in src/, build output in dist/.
 # Upstream 2.3.0 RAR is a verified immutable binary-helper baseline, not source.
 [CmdletBinding()]
 param(
-    [string]$Version = '2.3.4',
+    [string]$Version = '2.3.5',
     [string]$UpstreamTag = '2.3.0',
     [string]$OutputDir = 'dist'
 )
@@ -10,7 +10,7 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 Set-StrictMode -Version Latest
 
-if ($Version -ne '2.3.4' -or $UpstreamTag -ne '2.3.0') {
+if ($Version -ne '2.3.5' -or $UpstreamTag -ne '2.3.0') {
     throw 'Unsupported version/base combination. Review source and helper baseline before upgrading.'
 }
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
@@ -20,14 +20,14 @@ New-Item -Type Directory -Path $dest -Force | Out-Null
 $programPath = Join-Path $repo 'src/Program.cs'
 if (-not (Test-Path $programPath)) { throw 'Missing canonical src/Program.cs' }
 $program = [IO.File]::ReadAllText($programPath)
-if ($program -notmatch 'AssemblyInformationalVersion\("2\.3\.4"\)' -or
-    $program -notmatch 'AssemblyVersion\("2\.3\.4\.0"\)') {
-    throw 'Canonical source is not 2.3.4. Refusing to package.'
+if ($program -notmatch 'AssemblyInformationalVersion\("2\.3\.5"\)' -or
+    $program -notmatch 'AssemblyVersion\("2\.3\.5\.0"\)') {
+    throw 'Canonical source is not 2.3.5. Refusing to package.'
 }
 $ui = [IO.File]::ReadAllText((Join-Path $repo 'src/Controls.cs'))
 if ($ui -match 'art\.For\(ClientSize\)' -or $ui -notmatch 'Flat dark header' -or
     -not (Test-Path (Join-Path $repo 'src/DarkNumeric.cs'))) {
-    throw 'Approved 2.3.4 dark UI fixes missing; refusing to package.'
+    throw 'Approved dark UI fixes missing; refusing to package.'
 }
 foreach ($tool in @('cmd.exe', 'gh', '7z')) {
     if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) { throw "Required tool missing: $tool" }
@@ -43,10 +43,10 @@ finally { Pop-Location }
 $exe = Join-Path $dest 'FFmpegForge.exe'
 if (-not (Test-Path $exe)) { throw 'build.bat did not generate dist/FFmpegForge.exe' }
 $exeVersion = [Reflection.AssemblyName]::GetAssemblyName($exe).Version.ToString()
-if ($exeVersion -ne '2.3.4.0') { throw "Compiled assembly version mismatch: $exeVersion" }
+if ($exeVersion -ne '2.3.5.0') { throw "Compiled assembly version mismatch: $exeVersion" }
 Write-Host "PASS: locally compiled EXE version = $exeVersion, bytes = $((Get-Item $exe).Length)"
 
-$tmp = Join-Path ([IO.Path]::GetTempPath()) ('forge234-' + [Guid]::NewGuid().ToString('N'))
+$tmp = Join-Path ([IO.Path]::GetTempPath()) ('forge235-' + [Guid]::NewGuid().ToString('N'))
 $download = Join-Path $tmp 'upstream'
 $unpack = Join-Path $tmp 'unpack'
 $stage = Join-Path $tmp 'stage'
@@ -85,7 +85,7 @@ try {
         Copy-Item -LiteralPath (Join-Path $runtime 'models') -Destination $stage -Recurse
     }
     $readme = @'
-FFmpeg Forge Lite 2.3.4 (Windows portable)
+FFmpeg Forge Lite 2.3.5 (Windows portable)
 ==========================================
 Extract the ZIP and run FFmpegForge.exe.
 Click "FFmpeg location..." and choose your own ffmpeg.exe.
@@ -95,6 +95,7 @@ The package does NOT bundle FFmpeg, FFprobe or FFplay executables.
 Based on the official 2.3.0 release source; Lite's WinForms UI fixes
 remove decorative backgrounds, darken scrollbars/combos/spinner arrows,
 reduce expansion flicker and correct the DVD/Blu-ray rip window layout.
+Graphite Aurora colours from upstream 3.0.1; no new processing features.
 
 ForgeRTX.exe and dovi_tool.exe are upstream auxiliary tools.
 They retain their upstream license notices in this package.
@@ -102,7 +103,7 @@ portable.txt keeps application settings beside the application.
 '@
     [IO.File]::WriteAllText((Join-Path $stage 'README-LITE.txt'),
         $readme, [Text.UTF8Encoding]::new($false))
-    $zip = Join-Path $dest 'FFMpegForgeLite.v2.3.4.zip'
+    $zip = Join-Path $dest 'FFMpegForgeLite.v2.3.5.zip'
     if (Test-Path $zip) { Remove-Item $zip -Force }
     Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip -CompressionLevel Optimal
 
@@ -125,7 +126,7 @@ portable.txt keeps application settings beside the application.
     Write-Host "PASS: $zip"
     Write-Host "SHA256: $hash"
     if ($env:GITHUB_OUTPUT) {
-        "name=FFMpegForgeLite.v2.3.4.zip" | Out-File $env:GITHUB_OUTPUT -Append -Encoding utf8
+        "name=FFMpegForgeLite.v2.3.5.zip" | Out-File $env:GITHUB_OUTPUT -Append -Encoding utf8
         "version=$Version" | Out-File $env:GITHUB_OUTPUT -Append -Encoding utf8
         "sha256=$hash" | Out-File $env:GITHUB_OUTPUT -Append -Encoding utf8
     }
